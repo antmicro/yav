@@ -1,0 +1,22 @@
+image: debian:bookworm
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - apt update
+    - apt install cmake build-essential git -y
+    - cmake -Bbuild .
+    - cmake --build build
+  artifacts:
+    name: yav
+    paths:
+      - build/yav
+
+format:
+  stage: build
+  script:
+    - apt update
+    - apt install clang-format -y
+    - ./format.sh -c

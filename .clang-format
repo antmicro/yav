@@ -1,0 +1,13 @@
+---
+Language: Cpp
+BasedOnStyle: LLVM
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+AccessModifierOffset: -4
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+PointerAlignment: Left
+EmptyLineAfterAccessModifier: Always
+ColumnLimit: 0
+...
