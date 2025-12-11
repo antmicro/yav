@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <stdexcept>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -37,7 +38,7 @@ framebuffer::framebuffer(const char* path) {
 	if (path != nullptr) {
 		int fh = open(path, O_RDWR);
 		if (fh > 0) {
-			m_handle = fh;
+			init(fh);
 			return;
 		}
 
@@ -47,7 +48,7 @@ framebuffer::framebuffer(const char* path) {
 	if (FB_DEV_1) {
 		int fh = open(FB_DEV_1, O_RDWR);
 		if (fh > 0) {
-			m_handle = fh;
+			init(fh);
 			return;
 		}
 
@@ -57,7 +58,7 @@ framebuffer::framebuffer(const char* path) {
 	if (FB_DEV_2) {
 		int fh = open(FB_DEV_2, O_RDWR);
 		if (fh > 0) {
-			m_handle = fh;
+			init(fh);
 			return;
 		}
 
@@ -67,30 +68,17 @@ framebuffer::framebuffer(const char* path) {
 	throw std::runtime_error("out of ideas, unable to open any framebuffer");
 }
 
-framebuffer::framebuffer(int handle) {
+void framebuffer::init(int handle) {
 	m_handle = handle;
-}
+	load(m_info);
 
-unsigned char* framebuffer::buffer(size_t size) {
-
-	// if for some reason we need a bigger buffer now - recreate it
-	if (m_capacity < size) {
-		delete[] m_buffer;
-		m_buffer = nullptr;
-	}
-
-	if (!m_buffer) {
-		m_buffer = new unsigned char[size];
-		read(m_handle, m_buffer, size);
-		m_capacity = size;
-	}
-
-	return m_buffer;
+	void* map = mmap(nullptr, m_info.size(), PROT_READ | PROT_WRITE, MAP_SHARED, handle, 0);
+	m_buffer = static_cast<unsigned char*>(map);
 }
 
 framebuffer::~framebuffer() {
+	munmap(m_buffer, m_info.size());
 	close(m_handle);
-	delete[] m_buffer;
 }
 
 int framebuffer::handle() const {
@@ -116,27 +104,25 @@ void framebuffer::store(const info& info) {
 	if (ioctl(m_handle, FBIOPUT_VSCREENINFO, info.var)) {
 		throw std::runtime_error("failed to update variable frame buffer info");
 	}
+
+	// update local info
+	load(m_info);
 }
 
 void framebuffer::blit(const image& img) {
-
-	info info;
-	load(info);
-
-	const int screen_width = info.width();
-	const int screen_height = info.height();
+	const int screen_width = m_info.width();
+	const int screen_height = m_info.height();
 
 	const int img_width = img.width();
 	const int img_height = img.height();
 
-	const format fmt = info.get_format();
+	const format fmt = m_info.get_format();
 
 	// save a few cycles by encoding alpha only once
 	const size_t alpha = fmt.encode_alpha(0xff);
 	const size_t bytes = std::min(fmt.bytes(), 8UL);
 
-	const size_t size = screen_width * screen_height * bytes;
-	unsigned char* dst = buffer(size);
+	unsigned char* dst = m_buffer;
 
 	// calculate final image offset
 	// [sx, sy] describe the position in screen space coordinates (in range [0,
@@ -166,26 +152,13 @@ void framebuffer::blit(const image& img) {
 			memcpy(target, &color, bytes);
 		}
 	}
-
-	// we aren't using a mmap here as I had some issue mapping the framebuffer
-	// realistically this is plenty fast-enough whatever we do here
-	lseek(m_handle, 0, SEEK_SET);
-	write(m_handle, dst, size);
 }
 
 void framebuffer::clear() {
+	const size_t bytes = std::min(m_info.get_format().bytes(), 8UL);
+	const size_t size = m_info.width() * m_info.height() * bytes;
 
-	info info;
-	load(info);
-
-	const size_t bytes = std::min(info.get_format().bytes(), 8UL);
-	const size_t size = info.width() * info.height() * bytes;
-
-	void* dst = buffer(size);
-
-	memset(dst, 0, size);
-	lseek(m_handle, 0, SEEK_SET);
-	write(m_handle, dst, size);
+	memset(m_buffer, 0, size);
 }
 
 // region framebuffer::info
@@ -229,7 +202,16 @@ void framebuffer::info::dump() const {
 }
 
 size_t framebuffer::info::size() const {
-	return fix.smem_len;
+	const size_t page = getpagesize();
+	const size_t mask = page - 1;
+	const size_t bytes = fix.smem_len;
+
+	// align up
+	if (bytes & mask) {
+		return (bytes & ~mask) + page;
+	}
+
+	return bytes;
 }
 
 // region framebuffer::format

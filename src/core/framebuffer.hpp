@@ -25,12 +25,9 @@ class image;
 class framebuffer {
 
 	int m_handle = -1;
-	size_t m_capacity = 0;
 	unsigned char* m_buffer = nullptr;
 
-	framebuffer(int handle);
-
-	unsigned char* buffer(size_t size);
+	void init(int handle);
 
 public:
 
@@ -155,6 +152,10 @@ public:
 
 	// Clear the internal buffer
 	void clear();
+
+private:
+
+	info m_info;
 };
 
 class framebuffer_screen : public screen {
