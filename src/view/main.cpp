@@ -50,7 +50,7 @@ static void entry(const std::vector<std::string>& args) {
 		return std::find(args.begin(), args.end(), option);
 	};
 
-	auto next_value = [&](decltype(args.begin()) it) -> std::string {
+	auto next_value = [&](decltype(args.begin())& it) -> std::string {
 		++it;
 		return (it == args.end()) ? "" : *it;
 	};
