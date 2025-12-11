@@ -33,6 +33,7 @@ public:
 	float sy = 0;
 	int ox = 0;
 	int oy = 0;
+	bool blend = false;
 
 	image(const std::string& path);
 	image(unsigned char* pixels, int w, int h);

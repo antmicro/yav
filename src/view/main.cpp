@@ -20,7 +20,7 @@
 
 static void usage() {
 	printf("Usage: yav [--image <path>] [--anchor <x> <y>] [--offset <x> <y>]\n");
-	printf("           [-v] [--fbdev <path>] [-c|--clear] [-h|--help]\n");
+	printf("           [-v] [--fbdev <path>] [-c|--clear] [-h|--help] [-b|--blend]\n");
 }
 
 static void help() {
@@ -32,10 +32,12 @@ static void help() {
 	printf("      --image <path>   : Image file path\n");
 	printf("      --anchor <x> <y> : Anchor as fractions in range 0 to 1\n");
 	printf("      --offset <x> <y> : Offset in pixels\n");
+	printf("  -b, --blend          : Enable alpha-blending\n");
 	printf("  -c, --clear          : Clear the framebuffer\n");
 	printf("\nExample:\n");
 	printf("  yav --image example/tuxan.png --anchor 0.5 0.5\n");
 	printf("  yav --image example/tuxan.png --anchor 1 1 --offset -100 -100\n");
+	printf("  yav --image example/splash.png --anchor 0.5 0.5 --blend\n");
 }
 
 static void entry(const std::vector<std::string>& args) {
@@ -87,6 +89,10 @@ static void entry(const std::vector<std::string>& args) {
 		if (auto it = get_flag("--offset"); it != args.end()) {
 			img.ox = std::stoi(next_value(it));
 			img.oy = std::stoi(next_value(it));
+		}
+
+		if (get_flag("-b") != args.end() || get_flag("--blend") != args.end()) {
+			img.blend = true;
 		}
 
 		screen->blit(img);

@@ -123,6 +123,7 @@ void framebuffer::blit(const image& img) {
 	const size_t bytes = std::min(fmt.bytes(), 8UL);
 
 	unsigned char* dst = m_buffer;
+	const bool blending = img.blend;
 
 	// calculate final image offset
 	// [sx, sy] describe the position in screen space coordinates (in range [0,
@@ -148,7 +149,32 @@ void framebuffer::blit(const image& img) {
 			void* target = dst + (bx + x + (by + y) * screen_width) * bytes;
 			unsigned char* source = img.data() + (x + y * img_width) * 4;
 
-			size_t color = fmt.encode_rgb(source) | alpha;
+			uint8_t sr = source[0];
+			uint8_t sg = source[1];
+			uint8_t sb = source[2];
+			uint8_t sa = source[3];
+
+			// skip fully transparent pixels
+			if (sa == 0) {
+				continue;
+			}
+
+			if (blending) {
+				const float foreground = *(source + 3) / 255.0f;
+				const float background = 1 - foreground;
+
+				uint8_t r, g, b;
+				size_t pixel = 0;
+				memcpy(&pixel, target, bytes);
+
+				fmt.decode_rgb(pixel, &r, &g, &b);
+
+				sr = sr * foreground + r * background;
+				sg = sg * foreground + g * background;
+				sb = sb * foreground + b * background;
+			}
+
+			const size_t color = fmt.encode_rgb(sr, sg, sb) | alpha;
 			memcpy(target, &color, bytes);
 		}
 	}
@@ -232,11 +258,11 @@ bool framebuffer::format::color() const {
 	return pseudocolor() && (r.offset() != g.offset()) && (g.offset() != b.offset()) && (r.offset() != b.offset());
 }
 
-size_t framebuffer::format::encode_rgb(unsigned char* rgb) const {
-	return r.encode(rgb[0]) | g.encode(rgb[1]) | b.encode(rgb[2]);
+size_t framebuffer::format::encode_rgb(uint8_t sr, uint8_t sg, uint8_t sb) const {
+	return r.encode(sr) | g.encode(sg) | b.encode(sb);
 }
 
-size_t framebuffer::format::encode_alpha(unsigned char alpha) const {
+size_t framebuffer::format::encode_alpha(uint8_t alpha) const {
 	return a.encode(alpha);
 }
 
@@ -249,6 +275,12 @@ void framebuffer::format::dump() const {
 
 size_t framebuffer::format::bytes() const {
 	return bits / 8;
+}
+
+void framebuffer::format::decode_rgb(size_t pixel, uint8_t* dr, uint8_t* dg, uint8_t* db) const {
+	*dr = r.decode(pixel);
+	*dg = g.decode(pixel);
+	*db = b.decode(pixel);
 }
 
 // region framebuffer::channel
@@ -265,8 +297,12 @@ bool framebuffer::channel::is_used() const {
 	return m_mask != 0;
 }
 
-size_t framebuffer::channel::encode(unsigned char value) const {
-	return (value & m_mask) << m_offset;
+size_t framebuffer::channel::encode(uint8_t value) const {
+	return (((value * m_mask) / 255) & m_mask) << m_offset;
+}
+
+uint8_t framebuffer::channel::decode(size_t value) const {
+	return (((value * 255) / m_mask) >> m_offset) & m_mask;
 }
 
 void framebuffer::channel::dump(const char* name) const {
@@ -294,7 +330,12 @@ framebuffer_screen::framebuffer_screen(const std::string& path)
 
 		framebuffer::format format{32, {8, 0}, {8, 8}, {8, 16}, {}};
 		info.set_format(format);
-		fb->store(info);
+
+		try {
+			fb->store(info);
+		} catch (const std::exception& e) {
+			LOG_ERROR("Failed to enable color support! %s\n", e.what());
+		}
 	}
 
 	fb->load(info);
