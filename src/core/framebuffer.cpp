@@ -298,11 +298,13 @@ bool framebuffer::channel::is_used() const {
 }
 
 size_t framebuffer::channel::encode(uint8_t value) const {
-	return (((value * m_mask) / 255) & m_mask) << m_offset;
+	const size_t mapped = (value * m_mask) / 255;
+	return (mapped & m_mask) << m_offset;
 }
 
 uint8_t framebuffer::channel::decode(size_t value) const {
-	return (((value * 255) / m_mask) >> m_offset) & m_mask;
+	const size_t field = (value >> m_offset) & m_mask;
+	return (field * 255) / m_mask;
 }
 
 void framebuffer::channel::dump(const char* name) const {

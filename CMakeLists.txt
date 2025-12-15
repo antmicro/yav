@@ -3,6 +3,7 @@ project(fbo)
 
 set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
+include(CTest)
 
 FetchContent_Declare(
     stb
@@ -24,6 +25,11 @@ add_library(fbo OBJECT
 add_executable(yav
         src/view/main.cpp
 )
+
+add_executable(yav_unit_test src/view/test.cpp)
+target_include_directories(yav_unit_test PRIVATE src/)
+target_link_libraries(yav_unit_test PRIVATE fbo)
+add_test(NAME "YAV Unit Test" COMMAND yav_unit_test)
 
 target_link_libraries(yav PRIVATE fbo)
 target_include_directories(fbo PRIVATE src/ ${stb_SOURCE_DIR})

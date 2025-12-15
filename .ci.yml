@@ -9,6 +9,9 @@ build:
     - apt install cmake build-essential git -y
     - cmake -Bbuild .
     - cmake --build build
+    - pushd build
+    - ctest
+    - popd
   artifacts:
     name: yav
     paths:
