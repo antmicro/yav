@@ -2,7 +2,7 @@
 
 Copyright (c) 2025 [Antmicro](https://www.antmicro.com)
 
-Show images using the Linux framebuffer at specific locations on the screen. 
+Show images using the Linux framebuffer at specific locations on the screen.
 
 ## Build
 
@@ -15,7 +15,7 @@ cmake --build build
 
 ## Usage
 
-YAV will not work together with a running Linux desktop environment, to use it run it without one or on a separate TTY.  
+YAV will not work together with a running Linux desktop environment, to use it run it without one or on a separate TTY.
 To learn more, see `yav --help`.
 
 ```bash
