@@ -1,0 +1,30 @@
+name: yav
+on: [push, pull_request]
+jobs:
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Format
+        run: |
+          apt update
+          apt install clang-format -y
+          ./format.sh -c
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          apt update
+          apt install cmake build-essential git -y
+          cmake -Bbuild .
+          cmake --build build
