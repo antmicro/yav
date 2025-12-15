@@ -11,8 +11,8 @@ jobs:
 
       - name: Format
         run: |
-          apt update
-          apt install clang-format -y
+          sudo apt update
+          sudo apt install clang-format -y
           ./format.sh -c
 
   build:
@@ -24,8 +24,8 @@ jobs:
 
       - name: Build
         run: |
-          apt update
-          apt install cmake build-essential git -y
+          sudo apt update
+          sudo apt install cmake build-essential git -y
           cmake -Bbuild .
           cmake --build build
           pushd build
