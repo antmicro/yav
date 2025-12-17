@@ -22,6 +22,7 @@
 static void usage() {
 	printf("Usage: yav [--image <path>] [--anchor <x> <y>] [--offset <x> <y>]\n");
 	printf("           [-v] [--fbdev <path>] [-c|--clear] [-h|--help] [-b|--blend]\n");
+	printf("           [-s|--static] [--time <mspf>] [--loop [times]]\n");
 }
 
 static void help() {
@@ -33,12 +34,16 @@ static void help() {
 	printf("      --image <path>   : Image file path\n");
 	printf("      --anchor <x> <y> : Anchor as fractions in range 0 to 1\n");
 	printf("      --offset <x> <y> : Offset in pixels\n");
+	printf("      --time <mspf>    : Milliseconds per animation frame\n");
+	printf("      --loop [times]   : Specify infinite or exact loop count\n");
+	printf("  -s, --static         : Disable animations if present\n");
 	printf("  -b, --blend          : Enable alpha-blending\n");
 	printf("  -c, --clear          : Clear the framebuffer\n");
 	printf("\nExample:\n");
 	printf("  yav --image example/tuxan.png --anchor 0.5 0.5\n");
 	printf("  yav --image example/tuxan.png --anchor 1 1 --offset -100 -100\n");
 	printf("  yav --image example/splash.png --anchor 0.5 0.5 --blend\n");
+	printf("  yav --image example/earth.png --loop\n");
 }
 
 static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
@@ -113,6 +118,8 @@ static void entry(const std::vector<std::string>& args) {
 	if (auto it = get_flag("--image"); it != args.end()) {
 		image img{next_value(it)};
 
+		bool used_animation_flags = false;
+
 		if (auto it = get_flag("--anchor"); it != args.end()) {
 			img.sx = std::stof(next_value(it));
 			img.sy = std::stof(next_value(it));
@@ -123,8 +130,42 @@ static void entry(const std::vector<std::string>& args) {
 			img.oy = std::stoi(next_value(it));
 		}
 
+		if (auto it = get_flag("--time"); it != args.end()) {
+			used_animation_flags = true;
+			img.mspt = std::stoi(next_value(it)) * 1000; // micro to milli
+		}
+
+		if (auto it = get_flag("--loop"); it != args.end()) {
+			used_animation_flags = true;
+			int times = -1;
+			auto next = it + 1;
+
+			if (!next->empty() && std::isdigit(next->at(0))) {
+				try {
+					times = std::stoi(*(it + 1));
+					++it;
+				} catch (const std::exception&) {
+					printf("Invalid value given to '--loop'!\n");
+					return;
+				}
+			}
+
+			img.loops = times;
+		}
+
 		if (get_flag("-b") != args.end() || get_flag("--blend") != args.end()) {
 			img.blend = true;
+		}
+
+		if (get_flag("--static") != args.end() || get_flag("-s") != args.end()) {
+
+			if (used_animation_flags) {
+				printf("Option '--static' cannot be used with neither '--loop' nor '--time'!\n");
+				return;
+			}
+
+			img.frames = 1;
+			img.loops = 1;
 		}
 
 		screen->blit(img);

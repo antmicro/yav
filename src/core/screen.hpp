@@ -24,6 +24,9 @@ protected:
 	// Pointer to the start of underlying data, in screen-specific format
 	virtual void* data() const = 0;
 
+	// Write image into the screen
+	void blit_frame(const image& img, int frame);
+
 public:
 
 	virtual ~screen() = default;

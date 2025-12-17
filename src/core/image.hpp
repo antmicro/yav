@@ -34,6 +34,9 @@ public:
 	int ox = 0;
 	int oy = 0;
 	bool blend = false;
+	int frames = 1;
+	int mspt = 41'666;
+	int loops = 1;
 
 	image(const std::string& path);
 	image(unsigned char* pixels, int w, int h);
@@ -41,6 +44,7 @@ public:
 
 	int width() const;
 	int height() const;
-	unsigned char* data() const;
+	unsigned char* data(int frame) const;
 	void dump() const;
+	int frame_count() const;
 };

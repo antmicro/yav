@@ -15,10 +15,11 @@
 #include "screen.hpp"
 
 #include <cstring>
+#include <unistd.h>
 
 // region screen
 
-void screen::blit(const image& img) {
+void screen::blit_frame(const image& img, int frame) {
 	const int screen_width = width();
 	const int screen_height = height();
 
@@ -56,7 +57,7 @@ void screen::blit(const image& img) {
 	for (size_t x = 0; x < w; x++) {
 		for (size_t y = 0; y < h; y++) {
 			void* target = dst + (bx + x + (by + y) * screen_width) * bytes;
-			unsigned char* source = img.data() + (x + y * img_width) * 4;
+			unsigned char* source = img.data(frame) + (x + y * img_width) * 4;
 
 			uint8_t sr = source[0];
 			uint8_t sg = source[1];
@@ -89,6 +90,28 @@ void screen::blit(const image& img) {
 	}
 
 	flush();
+}
+
+void screen::blit(const image& img) {
+	int count = img.loops;
+
+	while (count) {
+		auto last = img.frame_count() - 1;
+
+		for (int frame = 0; frame <= last; frame++) {
+			blit_frame(img, frame);
+
+			// only sleep if there will be another frame
+			if (frame != last) {
+				usleep(img.mspt);
+			}
+		}
+
+		// setting loop to -1 puts it into an infinite loop
+		if (count > 0) {
+			count--;
+		}
+	}
 }
 
 void screen::clear() {
