@@ -2,9 +2,16 @@
 
 Copyright (c) 2025 [Antmicro](https://www.antmicro.com)
 
-Show images using the Linux framebuffer at specific locations on the screen.
+Show images using the Linux framebuffer or DRM at specific locations on the screen.
 
 ## Build
+
+To build YAV with the optional Linux DRM support, first, install `libdrm-dev`:
+
+```bash
+# Debian
+apt install libdrm-dev
+```
 
 YAV uses CMake and can be build using standard CMake commands like so:
 

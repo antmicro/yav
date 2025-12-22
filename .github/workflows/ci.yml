@@ -25,9 +25,10 @@ jobs:
       - name: Build
         run: |
           sudo apt update
-          sudo apt install cmake build-essential git -y
+          sudo apt install cmake build-essential git libdrm-dev -y
           cmake -Bbuild .
           cmake --build build
           pushd build
           ctest
+          ./yav --help
           popd

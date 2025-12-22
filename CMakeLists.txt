@@ -4,6 +4,7 @@ project(fbo)
 set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
 include(CTest)
+find_package(PkgConfig)
 
 FetchContent_Declare(
     stb
@@ -23,7 +24,30 @@ add_library(yavo OBJECT
         src/core/format.cpp
         src/core/format.hpp
         src/core/screen.cpp
+        src/core/interrupt.cpp
+        src/core/interrupt.hpp
 )
+
+if (PkgConfig_FOUND)
+    pkg_check_modules(LIBDRM libdrm)
+
+    if (LIBDRM_FOUND)
+        add_library(yavo_drm
+                src/core/drm.cpp
+                src/core/drm.hpp
+        )
+
+        target_link_libraries(yavo_drm PUBLIC ${LIBDRM_LIBRARIES})
+        target_include_directories(yavo_drm PUBLIC ${LIBDRM_INCLUDE_DIRS})
+        target_link_libraries(yavo PUBLIC yavo_drm)
+        target_compile_definitions(yavo PUBLIC HAS_LIBDRM)
+        message(STATUS "DRM support ENABLED")
+    else()
+        message(STATUS "DRM support DISABLED, libdrm not found!")
+    endif()
+else()
+    message(STATUS "DRM support DISABLED, PkgConfig not found!")
+endif()
 
 add_executable(yav
         src/view/main.cpp

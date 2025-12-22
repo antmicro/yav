@@ -13,15 +13,20 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <core/interrupt.hpp>
 #include <core/logger.hpp>
 #include <filesystem>
 #include <vector>
+
+#ifdef HAS_LIBDRM
+#include "core/drm.hpp"
+#endif
 
 #include "core/framebuffer.hpp"
 
 static void usage() {
 	printf("Usage: yav [--image <path>] [--anchor <x> <y>] [--offset <x> <y>]\n");
-	printf("           [-v] [--fbdev <path>] [-c|--clear] [-h|--help] [-b|--blend]\n");
+	printf("           [-v] [--dev <d[:path]>] [-c|--clear] [-h|--help] [-b|--blend]\n");
 	printf("           [-s|--static] [--time <mspf>] [--loop [times]]\n");
 }
 
@@ -30,7 +35,7 @@ static void help() {
 	printf("Options:\n");
 	printf("  -h, --help           : Show this help page and exit\n");
 	printf("  -v                   : Verbose mode\n");
-	printf("      --dev <d[:path]> : Device type (Must be 'fb') and, optionally, path\n");
+	printf("      --dev <d[:path]> : Device type ('fb' or 'drm') and, optionally, path\n");
 	printf("      --image <path>   : Image file path\n");
 	printf("      --anchor <x> <y> : Anchor as fractions in range 0 to 1\n");
 	printf("      --offset <x> <y> : Offset in pixels\n");
@@ -74,7 +79,16 @@ static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
 		return std::make_unique<framebuffer_screen>(path);
 	}
 
-	throw std::runtime_error("Unknown device, expected 'fb'");
+	if (device == "drm") {
+#ifdef HAS_LIBDRM
+		return std::make_unique<drm_screen>(path);
+#else
+		printf("This VAV build was compiled without DRM support, use --dev fb[:path]!");
+		exit(1);
+#endif
+	}
+
+	throw std::runtime_error("Unknown device");
 }
 
 static void entry(const std::vector<std::string>& args) {
@@ -174,6 +188,8 @@ static void entry(const std::vector<std::string>& args) {
 
 int main(int argc, char* argv[]) {
 
+	setup_interrupt_handlers();
+
 	std::vector<std::string> args;
 	args.reserve(argc);
 
@@ -185,6 +201,7 @@ int main(int argc, char* argv[]) {
 		entry(args);
 	} catch (const std::exception& e) {
 		LOG_ERROR("%s\n", e.what());
+		return 1;
 	}
 
 	return 0;

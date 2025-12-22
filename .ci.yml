@@ -2,7 +2,7 @@ image: debian:bookworm
 stages:
   - build
 
-build:
+build-no-drm:
   stage: build
   script:
     - apt update
@@ -11,6 +11,20 @@ build:
     - cmake --build build
     - pushd build
     - ctest
+    - "! ./yav --dev drm --image ../example/tuxan.png"
+    - ./yav --help
+    - popd
+
+build:
+  stage: build
+  script:
+    - apt update
+    - apt install cmake build-essential git libdrm-dev -y
+    - cmake -Bbuild .
+    - cmake --build build
+    - pushd build
+    - ctest
+    - ./yav --help
     - popd
   artifacts:
     name: yav

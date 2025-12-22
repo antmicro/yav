@@ -17,6 +17,8 @@
 #include <cstring>
 #include <unistd.h>
 
+#include "interrupt.hpp"
+
 // region screen
 
 void screen::blit_frame(const image& img, int frame) {
@@ -100,6 +102,10 @@ void screen::blit(const image& img) {
 
 		for (int frame = 0; frame <= last; frame++) {
 			blit_frame(img, frame);
+
+			if (was_interrupted()) {
+				return;
+			}
 
 			// only sleep if there will be another frame
 			if (frame != last) {
