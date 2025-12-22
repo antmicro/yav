@@ -25,8 +25,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "image.hpp"
-
 // to disable set to nullptr
 #define FB_DEV_1 "/dev/fb0"
 #define FB_DEV_2 "/dev/fb/0"
@@ -69,11 +67,15 @@ framebuffer::framebuffer(const char* path) {
 }
 
 void framebuffer::init(int handle) {
-	m_handle = handle;
-	load(m_info);
+	try {
+		m_handle = handle;
+		load(m_info);
 
-	void* map = mmap(nullptr, m_info.size(), PROT_READ | PROT_WRITE, MAP_SHARED, handle, 0);
-	m_buffer = static_cast<unsigned char*>(map);
+		void* map = mmap(nullptr, m_info.size(), PROT_READ | PROT_WRITE, MAP_SHARED, handle, 0);
+		m_buffer = static_cast<unsigned char*>(map);
+	} catch (const std::exception& e) {
+		throw std::runtime_error{"framebuffer init failed: " + std::string(e.what())};
+	}
 }
 
 framebuffer::~framebuffer() {
@@ -109,82 +111,12 @@ void framebuffer::store(const info& info) {
 	load(m_info);
 }
 
-void framebuffer::blit(const image& img) {
-	const int screen_width = m_info.width();
-	const int screen_height = m_info.height();
-
-	const int img_width = img.width();
-	const int img_height = img.height();
-
-	const format fmt = m_info.get_format();
-
-	// save a few cycles by encoding alpha only once
-	const size_t alpha = fmt.encode_alpha(0xff);
-	const size_t bytes = std::min(fmt.bytes(), 8UL);
-
-	unsigned char* dst = m_buffer;
-	const bool blending = img.blend;
-
-	// calculate final image offset
-	// [sx, sy] describe the position in screen space coordinates (in range [0,
-	// 1] the placement of the image's matching point, where (0, 0) is the top
-	// left screen corner. (so for (-1, -1) top-left image corner in top-left
-	// screen corner, and for (1, 1) bottom-right image corner in bottom-right
-	// screen corner). We add the [ox, oy], to allow for-fine tuning the image's
-	// position in pixels.
-	const int fx = img.ox + static_cast<float>(screen_width) * img.sx - static_cast<float>(img_width) * img.sx;
-	const int fy = img.oy + static_cast<float>(screen_height) * img.sy - static_cast<float>(img_height) * img.sy;
-
-	//  clamp source dimensions so that it fits in the buffer
-	size_t bx = std::max(fx, 0);
-	size_t by = std::max(fy, 0);
-
-	// ... here we make sure we don't fall outside on the right/bottom
-	size_t w = std::min(fx + img_width, screen_width) - fx;
-	size_t h = std::min(fy + img_height, screen_height) - fy;
-
-	// we iterate over the clamped range of source image pixels
-	for (size_t x = 0; x < w; x++) {
-		for (size_t y = 0; y < h; y++) {
-			void* target = dst + (bx + x + (by + y) * screen_width) * bytes;
-			unsigned char* source = img.data() + (x + y * img_width) * 4;
-
-			uint8_t sr = source[0];
-			uint8_t sg = source[1];
-			uint8_t sb = source[2];
-			uint8_t sa = source[3];
-
-			// skip fully transparent pixels
-			if (sa == 0) {
-				continue;
-			}
-
-			if (blending) {
-				const float foreground = *(source + 3) / 255.0f;
-				const float background = 1 - foreground;
-
-				uint8_t r, g, b;
-				size_t pixel = 0;
-				memcpy(&pixel, target, bytes);
-
-				fmt.decode_rgb(pixel, &r, &g, &b);
-
-				sr = sr * foreground + r * background;
-				sg = sg * foreground + g * background;
-				sb = sb * foreground + b * background;
-			}
-
-			const size_t color = fmt.encode_rgb(sr, sg, sb) | alpha;
-			memcpy(target, &color, bytes);
-		}
-	}
+const framebuffer::info& framebuffer::cached_info() const {
+	return m_info;
 }
 
-void framebuffer::clear() {
-	const size_t bytes = std::min(m_info.get_format().bytes(), 8UL);
-	const size_t size = m_info.width() * m_info.height() * bytes;
-
-	memset(m_buffer, 0, size);
+void* framebuffer::data() const {
+	return m_buffer;
 }
 
 // region framebuffer::info
@@ -209,15 +141,25 @@ unsigned int framebuffer::info::height() const {
 	return var.yres;
 }
 
-framebuffer::format framebuffer::info::get_format() const {
-	return format{var};
+format framebuffer::info::get_format() const {
+	auto r = var.red;
+	auto g = var.green;
+	auto b = var.blue;
+	auto a = var.transp;
+
+	return format{
+		var.bits_per_pixel,
+		{r.length, r.offset},
+		{g.length, g.offset},
+		{b.length, b.offset},
+		{a.length, a.offset}};
 }
 
 void framebuffer::info::set_format(const format& fmt) {
-	var.red = fmt.r.as_bitfield();
-	var.green = fmt.g.as_bitfield();
-	var.blue = fmt.b.as_bitfield();
-	var.transp = fmt.a.as_bitfield();
+	var.red = {fmt.r.offset, fmt.r.length, 0};
+	var.green = {fmt.g.offset, fmt.g.length, 0};
+	var.blue = {fmt.b.offset, fmt.b.length, 0};
+	var.transp = {fmt.a.offset, fmt.a.length, 0};
 	var.bits_per_pixel = fmt.bits;
 }
 
@@ -240,85 +182,6 @@ size_t framebuffer::info::size() const {
 	return bytes;
 }
 
-// region framebuffer::format
-
-framebuffer::format::format(unsigned int bits, channel r, channel g, channel b, channel a)
-	: bits(bits), r(r), g(g), b(b), a(a) {
-}
-
-framebuffer::format::format(const fb_var_screeninfo& var)
-	: format(var.bits_per_pixel, var.red, var.green, var.blue, var.transp) {
-}
-
-bool framebuffer::format::pseudocolor() const {
-	return r.is_used() && g.is_used() && b.is_used();
-}
-
-bool framebuffer::format::color() const {
-	return pseudocolor() && (r.offset() != g.offset()) && (g.offset() != b.offset()) && (r.offset() != b.offset());
-}
-
-size_t framebuffer::format::encode_rgb(uint8_t sr, uint8_t sg, uint8_t sb) const {
-	return r.encode(sr) | g.encode(sg) | b.encode(sb);
-}
-
-size_t framebuffer::format::encode_alpha(uint8_t alpha) const {
-	return a.encode(alpha);
-}
-
-void framebuffer::format::dump() const {
-	r.dump("red");
-	g.dump("green");
-	b.dump("blue");
-	a.dump("alpha");
-}
-
-size_t framebuffer::format::bytes() const {
-	return bits / 8;
-}
-
-void framebuffer::format::decode_rgb(size_t pixel, uint8_t* dr, uint8_t* dg, uint8_t* db) const {
-	*dr = r.decode(pixel);
-	*dg = g.decode(pixel);
-	*db = b.decode(pixel);
-}
-
-// region framebuffer::channel
-
-framebuffer::channel::channel(unsigned int length, unsigned int offset)
-	: m_offset(offset), m_length(length), m_mask((1 << length) - 1) {
-}
-
-framebuffer::channel::channel(fb_bitfield bf)
-	: channel(bf.length, bf.offset) {
-}
-
-bool framebuffer::channel::is_used() const {
-	return m_mask != 0;
-}
-
-size_t framebuffer::channel::encode(uint8_t value) const {
-	const size_t mapped = (value * m_mask) / 255;
-	return (mapped & m_mask) << m_offset;
-}
-
-uint8_t framebuffer::channel::decode(size_t value) const {
-	const size_t field = (value >> m_offset) & m_mask;
-	return (field * 255) / m_mask;
-}
-
-void framebuffer::channel::dump(const char* name) const {
-	printf("%s=%02x@%d ", name, m_mask, m_offset);
-}
-
-unsigned int framebuffer::channel::offset() const {
-	return m_offset;
-}
-
-fb_bitfield framebuffer::channel::as_bitfield() const {
-	return {m_offset, m_length, 0};
-}
-
 // region framebuffer_screen
 
 framebuffer_screen::framebuffer_screen(const std::string& path)
@@ -330,8 +193,8 @@ framebuffer_screen::framebuffer_screen(const std::string& path)
 	if (!info.has_color() || info.has_fourcc()) {
 		LOG_WARN("Framebuffer doesn't have color enabled, trying to switch format to RGB...\n");
 
-		framebuffer::format format{32, {8, 0}, {8, 8}, {8, 16}, {}};
-		info.set_format(format);
+		format fmt{32, {8, 0}, {8, 8}, {8, 16}, {}};
+		info.set_format(fmt);
 
 		try {
 			fb->store(info);
@@ -347,16 +210,28 @@ framebuffer_screen::framebuffer_screen(const std::string& path)
 	}
 }
 
-void framebuffer_screen::blit(const image& img) {
-	fb->blit(img);
-}
-
-void framebuffer_screen::clear() {
-	fb->clear();
-}
-
 void framebuffer_screen::dump() {
 	framebuffer::info info;
 	fb->load(info);
 	info.dump();
+}
+
+int framebuffer_screen::width() const {
+	return fb->cached_info().width();
+}
+
+int framebuffer_screen::height() const {
+	return fb->cached_info().height();
+}
+
+void* framebuffer_screen::data() const {
+	return fb->data();
+}
+
+format framebuffer_screen::form() const {
+	return fb->cached_info().get_format();
+}
+
+void framebuffer_screen::flush() const {
+	// do nothing
 }

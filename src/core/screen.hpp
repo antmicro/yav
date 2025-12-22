@@ -14,20 +14,38 @@
 
 #pragma once
 
+#include "format.hpp"
 #include "image.hpp"
 
 class screen {
+
+protected:
+
+	// Pointer to the start of underlying data, in screen-specific format
+	virtual void* data() const = 0;
 
 public:
 
 	virtual ~screen() = default;
 
 	// Write image into the screen
-	virtual void blit(const image& img) = 0;
+	void blit(const image& img);
 
 	// Clear the screen contents
-	virtual void clear() = 0;
+	void clear();
 
 	// Print generic information about this screen to the standard output
 	virtual void dump() = 0;
+
+	// Width, in pixels, of the screen
+	virtual int width() const = 0;
+
+	// Height, in pixels, of the screen
+	virtual int height() const = 0;
+
+	// Get data format fused by this screen
+	virtual format form() const = 0;
+
+	// Flush screen content
+	virtual void flush() const = 0;
 };

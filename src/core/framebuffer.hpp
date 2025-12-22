@@ -19,6 +19,7 @@
 #include <string>
 
 #include "core/screen.hpp"
+#include "format.hpp"
 
 class image;
 
@@ -36,72 +37,6 @@ public:
 	// device can't be found this constructor will try the default ones.
 	framebuffer(const char* path);
 	~framebuffer();
-
-	// Describes the data layout of a single channel
-	// in a single pixel
-	class channel {
-
-		unsigned int m_length = 0;
-		unsigned int m_offset = 0;
-		unsigned int m_mask = 0;
-
-	public:
-
-		channel() = default;
-		channel(unsigned int length, unsigned int offset);
-		channel(fb_bitfield bf);
-
-		// Check if this channel in any way contributes to the format (has
-		// non-zero mask)
-		bool is_used() const;
-
-		// Encodes a single value into the format described by this channel
-		size_t encode(uint8_t value) const;
-
-		// Given an encoded pixel return back the channel value
-		uint8_t decode(size_t value) const;
-
-		// Print simple overview to the standard output
-		void dump(const char* name) const;
-
-		// Get the required left-bit-shift to form the desired value
-		unsigned int offset() const;
-
-		// Convert back to linux fb_bitfield
-		fb_bitfield as_bitfield() const;
-	};
-
-	// Describes the data layout in a single pixel
-	// can be used to convert RGB data to that layout
-	struct format {
-
-		unsigned int bits;
-		channel r, g, b, a;
-
-		format(unsigned int bits, channel r, channel g, channel b, channel a);
-		format(const fb_var_screeninfo& var);
-
-		// Does this format have RGB channels
-		bool pseudocolor() const;
-
-		// Does this format have separate RGB channels
-		bool color() const;
-
-		// Encode RGB data into the format
-		size_t encode_rgb(uint8_t sr, uint8_t sg, uint8_t sb) const;
-
-		// Encode transparency data into the format
-		size_t encode_alpha(uint8_t alpha) const;
-
-		// Print simple overview to the standard output
-		void dump() const;
-
-		// How many bytes a single pixel takes in this format
-		size_t bytes() const;
-
-		// given an encoded pixel computes the stored RGB values
-		void decode_rgb(size_t pixel, uint8_t* r, uint8_t* g, uint8_t* b) const;
-	};
 
 	class info {
 
@@ -153,11 +88,11 @@ public:
 	// Update the framebuffers configuration using the provided metadata object
 	void store(const info& info);
 
-	// Copy image into the framebuffer
-	void blit(const image& img);
+	// get cached info
+	const info& cached_info() const;
 
-	// Clear the internal buffer
-	void clear();
+	// get pointer to raw pixel data in framebuffer-specific format
+	void* data() const;
 
 private:
 
@@ -168,11 +103,17 @@ class framebuffer_screen : public screen {
 
 	std::unique_ptr<framebuffer> fb;
 
+protected:
+
+	void* data() const override;
+
 public:
 
 	framebuffer_screen(const std::string& path);
 
-	void blit(const image& img) override;
-	void clear() override;
 	void dump() override;
+	int width() const override;
+	int height() const override;
+	format form() const override;
+	void flush() const override;
 };

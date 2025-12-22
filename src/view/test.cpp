@@ -22,11 +22,8 @@
 
 static void test_framebuffer_channel() {
 
-	framebuffer::channel channel{6, 3};
+	channel channel{6, 3};
 
-	auto bf = channel.as_bitfield();
-	ASSERT(bf.length == 6)
-	ASSERT(bf.offset == 3)
 	ASSERT(channel.is_used())
 
 	ASSERT(channel.decode(0b111111'101) == 255)
@@ -40,7 +37,7 @@ static void test_framebuffer_channel() {
 
 static void test_framebuffer_format() {
 
-	framebuffer::format fmt{16, {5, 11}, {6, 5}, {5, 0}, {}};
+	format fmt{16, {5, 11}, {6, 5}, {5, 0}, {}};
 
 	ASSERT(fmt.color())
 	ASSERT(fmt.encode_rgb(255, 125, 0) == 0b11111'011110'00000)

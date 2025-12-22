@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <core/logger.hpp>
 #include <filesystem>
 #include <vector>
 
@@ -28,7 +29,7 @@ static void help() {
 	printf("Options:\n");
 	printf("  -h, --help           : Show this help page and exit\n");
 	printf("  -v                   : Verbose mode\n");
-	printf("      --fbdev <path>   : Path to the framebuffer device\n");
+	printf("      --dev <d[:path]> : Device type (Must be 'fb') and, optionally, path\n");
 	printf("      --image <path>   : Image file path\n");
 	printf("      --anchor <x> <y> : Anchor as fractions in range 0 to 1\n");
 	printf("      --offset <x> <y> : Offset in pixels\n");
@@ -38,6 +39,37 @@ static void help() {
 	printf("  yav --image example/tuxan.png --anchor 0.5 0.5\n");
 	printf("  yav --image example/tuxan.png --anchor 1 1 --offset -100 -100\n");
 	printf("  yav --image example/splash.png --anchor 0.5 0.5 --blend\n");
+}
+
+static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
+
+	if (descriptor.empty()) {
+		return std::make_unique<framebuffer_screen>("");
+	}
+
+	bool begin_path = false;
+	std::string device;
+	std::string path;
+
+	// split descriptor to device[:path]
+	for (char c : descriptor) {
+		if (begin_path) {
+			path.push_back(c);
+		} else {
+			if (c == ':') {
+				begin_path = true;
+				continue;
+			}
+
+			device.push_back(c);
+		}
+	}
+
+	if (device == "fb") {
+		return std::make_unique<framebuffer_screen>(path);
+	}
+
+	throw std::runtime_error("Unknown device, expected 'fb'");
 }
 
 static void entry(const std::vector<std::string>& args) {
@@ -64,11 +96,11 @@ static void entry(const std::vector<std::string>& args) {
 
 	std::string fbdev_path;
 
-	if (auto it = get_flag("--fbdev"); it != args.end()) {
+	if (auto it = get_flag("--dev"); it != args.end()) {
 		fbdev_path = next_value(it);
 	}
 
-	auto screen = std::make_unique<framebuffer_screen>(fbdev_path);
+	auto screen = make_screen(fbdev_path);
 
 	if (get_flag("-v") != args.end()) {
 		screen->dump();
@@ -108,6 +140,11 @@ int main(int argc, char* argv[]) {
 		args.emplace_back(argv[i]);
 	}
 
-	entry(args);
+	try {
+		entry(args);
+	} catch (const std::exception& e) {
+		LOG_ERROR("%s\n", e.what());
+	}
+
 	return 0;
 }
