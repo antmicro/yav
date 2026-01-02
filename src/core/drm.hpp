@@ -33,13 +33,13 @@ class drm {
 	void* buffer;
 
 	static drmModeResPtr get_resource(int fd);
-	static drmModeConnectorPtr pick_connector(int fd, drmModeResPtr resource);
+	static drmModeConnectorPtr pick_connector(int fd, drmModeResPtr resource, size_t index);
 	static drmModeModeInfoPtr pick_mode(drmModeConnectorPtr connector);
 	static drmModeCrtcPtr get_crtc(int fd, drmModeConnectorPtr connector);
 
 	void map();
 	void create_framebuffer(int depth, int bits_per_pixel);
-	void init(int fd);
+	void init(int fd, size_t output);
 
 public:
 
@@ -78,5 +78,5 @@ public:
 	int width() const override;
 	int height() const override;
 	format form() const override;
-	void flush() const;
+	void flush() const override;
 };

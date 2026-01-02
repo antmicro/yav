@@ -26,7 +26,7 @@
 
 static void usage() {
 	printf("Usage: yav [--image <path>] [--anchor <x> <y>] [--offset <x> <y>]\n");
-	printf("           [-v] [--dev <d[:path]>] [-c|--clear] [-h|--help] [-b|--blend]\n");
+	printf("           [-v] [--dev <d[:cfg]>] [-c|--clear] [-h|--help] [-b|--blend]\n");
 	printf("           [-s|--static] [--time <mspf>] [--loop [times]]\n");
 }
 
@@ -35,7 +35,7 @@ static void help() {
 	printf("Options:\n");
 	printf("  -h, --help           : Show this help page and exit\n");
 	printf("  -v                   : Verbose mode\n");
-	printf("      --dev <d[:path]> : Device type ('fb' or 'drm') and, optionally, path\n");
+	printf("      --dev <d[:cfg]>  : Device type ('fb', 'drm') and config, use '--dev <d>:?' for more info.\n");
 	printf("      --image <path>   : Image file path\n");
 	printf("      --anchor <x> <y> : Anchor as fractions in range 0 to 1\n");
 	printf("      --offset <x> <y> : Offset in pixels\n");
@@ -75,12 +75,33 @@ static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
 		}
 	}
 
+	// Linux framebuffer device
 	if (device == "fb") {
+		if (path == "?") {
+			printf("Usage: --dev fb[:path]\n\n");
+			printf("Use framebuffer device, this is the default mode of operation,\n");
+			printf("the optional path given after ':' can be used to point YAV to a specific\n");
+			printf("framebuffer device driver to use. By default yav will try both /dev/fb0 and /dev/fb/0.\n\n");
+			exit(0);
+		}
+
 		return std::make_unique<framebuffer_screen>(path);
 	}
 
+	// Linux DRM device
 	if (device == "drm") {
 #ifdef HAS_LIBDRM
+		if (path == "?") {
+			printf("Usage: --dev dev[:[path][@screen]]\n\n");
+			printf("Use Linux Direct Rendering Manager (DRM) device,\n");
+			printf("the optional path given after ':' can be used to point YAV to a specific\n");
+			printf("DRM device driver to use. By default YAV will try to use /dev/dri/card0.\n");
+			printf("The screen is an optional integer given after '@' that specifies the DRM connector to use, by default\n");
+			printf("the value is read from environment variable 'DRM_CONNECTOR', if that is missing '0' is used.\n");
+			printf("As the path is optional '--dev drm:@1' is a valid descriptor.\n\n");
+			exit(0);
+		}
+
 		return std::make_unique<drm_screen>(path);
 #else
 		printf("This VAV build was compiled without DRM support, use --dev fb[:path]!");
@@ -88,7 +109,7 @@ static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
 #endif
 	}
 
-	throw std::runtime_error("Unknown device");
+	throw std::runtime_error("Unknown device '" + device + "' (expected 'fb', 'drm'), did you forget the ':'?");
 }
 
 static void entry(const std::vector<std::string>& args) {

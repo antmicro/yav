@@ -14,7 +14,9 @@
 
 #include "drm.hpp"
 
+#include <cstdlib>
 #include <stdexcept>
+#include <vector>
 
 #include "logger.hpp"
 #include <cstdio>
@@ -24,6 +26,7 @@
 #include <sys/mman.h>
 
 #define DRM_DEV_1 "/dev/dri/card0"
+#define DRM_ENV_CONN "DRM_CONNECTOR"
 
 // region drm
 
@@ -37,7 +40,10 @@ drmModeResPtr drm::get_resource(int fd) {
 	throw std::runtime_error{"Unable to get DRM resources!"};
 }
 
-drmModeConnectorPtr drm::pick_connector(int fd, drmModeResPtr resource) {
+drmModeConnectorPtr drm::pick_connector(int fd, drmModeResPtr resource, size_t index) {
+
+	std::vector<drmModeConnectorPtr> connectors;
+
 	for (int i = 0; i < resource->count_connectors; i++) {
 		const auto connector = drmModeGetConnectorCurrent(fd, resource->connectors[i]);
 
@@ -53,10 +59,20 @@ drmModeConnectorPtr drm::pick_connector(int fd, drmModeResPtr resource) {
 			continue;
 		}
 
-		return connector;
+		connectors.push_back(connector);
 	}
 
-	throw std::runtime_error{"No valid connection found!"};
+	if (index >= connectors.size()) {
+		throw std::runtime_error{"Can't select output #" + std::to_string(index) + ", as there are only " + std::to_string(connectors.size()) + " outputs"};
+	}
+
+	for (size_t i = 0; i < connectors.size(); i++) {
+		if (i != index) {
+			drmModeFreeConnector(connectors[i]);
+		}
+	}
+
+	return connectors[index];
 }
 
 drmModeModeInfoPtr drm::pick_mode(drmModeConnectorPtr connector) {
@@ -105,20 +121,51 @@ drmModeCrtcPtr drm::get_crtc(int fd, drmModeConnectorPtr connector) {
 
 drm::drm(const char* path) {
 
+	size_t output = 0;
+
+	const char* default_conn = std::getenv(DRM_ENV_CONN);
+
+	if (default_conn != nullptr) {
+		output = std::stoull(default_conn);
+	}
+
 	if (path != nullptr) {
-		int fh = open(path, O_RDWR);
-		if (fh > 0) {
-			init(fh);
-			return;
+		bool begin_display = false;
+		std::string wrapped{path};
+		std::string file, display;
+
+		for (char c : wrapped) {
+			if (begin_display) {
+				display.push_back(c);
+			} else {
+				if (c == '@') {
+					begin_display = true;
+					continue;
+				}
+
+				file.push_back(c);
+			}
 		}
 
-		LOG_WARN("Failed to open user-provided path '%s'!\n", path);
+		if (!display.empty()) {
+			output = std::stoull(display.c_str());
+		}
+
+		if (!file.empty()) {
+			int fh = open(file.c_str(), O_RDWR);
+			if (fh > 0) {
+				init(fh, output);
+				return;
+			}
+
+			LOG_WARN("Failed to open user-provided path '%s'!\n", path);
+		}
 	}
 
 	if (DRM_DEV_1) {
 		int fh = open(DRM_DEV_1, O_RDWR);
 		if (fh > 0) {
-			init(fh);
+			init(fh, output);
 			return;
 		}
 
@@ -197,13 +244,13 @@ void drm::create_framebuffer(int depth, int bits_per_pixel) {
 	}
 }
 
-void drm::init(int fd) {
+void drm::init(int fd, size_t output) {
 
 	try {
 		auto resource = get_resource(fd);
 		this->fd = fd;
 
-		this->conn = pick_connector(fd, resource);
+		this->conn = pick_connector(fd, resource, output);
 		this->mode = pick_mode(conn);
 		this->crtc = get_crtc(fd, conn);
 
