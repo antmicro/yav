@@ -59,6 +59,7 @@ target_link_libraries(yav_unit_test PRIVATE yavo)
 add_test(NAME "YAV Unit Test" COMMAND yav_unit_test)
 
 target_link_libraries(yav PRIVATE yavo)
-target_include_directories(yavo PRIVATE src/ ${stb_SOURCE_DIR})
+target_include_directories(yavo PUBLIC src/)
+target_include_directories(yavo PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(yav PRIVATE src/)
 install(TARGETS yav)
