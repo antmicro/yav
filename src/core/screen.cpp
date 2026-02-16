@@ -1,4 +1,4 @@
-// Copyright 2025 Antmicro
+// Copyright 2025, 2026 Antmicro
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,28 @@
 #include <unistd.h>
 
 #include "interrupt.hpp"
+
+#ifdef __GNUC__
+#define YAV_FORCE_INLINE __attribute__((always_inline)) inline
+#else
+#define YAV_FORCE_INLINE inline
+#endif
+
+static YAV_FORCE_INLINE void blend(color& s, const void* backbuffer_pixel, const format& fmt, const size_t bytes) {
+
+	const float foreground = s.a / 255.0f;
+	const float background = 1 - foreground;
+
+	uint8_t r, g, b;
+	size_t pixel = 0;
+	memcpy(&pixel, backbuffer_pixel, bytes);
+
+	fmt.decode_rgb(pixel, &r, &g, &b);
+
+	s.r = s.r * foreground + r * background;
+	s.g = s.g * foreground + g * background;
+	s.b = s.b * foreground + b * background;
+}
 
 // region screen
 
@@ -56,37 +78,21 @@ void screen::blit_frame(const image& img, int frame) {
 	size_t h = std::min(fy + img_height, screen_height) - fy;
 
 	// we iterate over the clamped range of source image pixels
-	for (size_t x = 0; x < w; x++) {
-		for (size_t y = 0; y < h; y++) {
+	for (size_t y = 0; y < h; y++) {
+		for (size_t x = 0; x < w; x++) {
 			void* target = dst + (bx + x + (by + y) * screen_width) * bytes;
-			unsigned char* source = img.data(frame) + (x + y * img_width) * 4;
-
-			uint8_t sr = source[0];
-			uint8_t sg = source[1];
-			uint8_t sb = source[2];
-			uint8_t sa = source[3];
+			color s = color::from_rgba(img.data(frame) + (x + y * img_width) * 4);
 
 			// skip fully transparent pixels
-			if (sa == 0) {
+			if (s.a == 0) {
 				continue;
 			}
 
 			if (blending) {
-				const float foreground = *(source + 3) / 255.0f;
-				const float background = 1 - foreground;
-
-				uint8_t r, g, b;
-				size_t pixel = 0;
-				memcpy(&pixel, target, bytes);
-
-				fmt.decode_rgb(pixel, &r, &g, &b);
-
-				sr = sr * foreground + r * background;
-				sg = sg * foreground + g * background;
-				sb = sb * foreground + b * background;
+				blend(s, target, fmt, bytes);
 			}
 
-			const size_t color = fmt.encode_rgb(sr, sg, sb) | alpha;
+			const size_t color = fmt.encode_rgb(s.r, s.g, s.b) | alpha;
 			memcpy(target, &color, bytes);
 		}
 	}
@@ -120,9 +126,31 @@ void screen::blit(const image& img) {
 	}
 }
 
-void screen::clear() {
-	const size_t bytes = std::min(form().bytes(), 8UL);
-	const size_t size = width() * height() * bytes;
+void screen::clear(color c) {
+	const int w = width();
+	const int h = height();
 
-	memset(data(), 0, size);
+	const format fmt = form();
+	const size_t bytes = std::min(fmt.bytes(), 8UL);
+	const size_t alpha = fmt.encode_alpha(0xff);
+
+	auto* dst = reinterpret_cast<uint8_t*>(data());
+
+	if (c.a == 0) {
+		return;
+	}
+
+	for (size_t y = 0; y < h; y++) {
+		for (size_t x = 0; x < w; x++) {
+			void* target = dst + (x + y * w) * bytes;
+			color s = c;
+
+			if (c.a != 255) {
+				blend(s, target, fmt, bytes);
+			}
+
+			const size_t encoded = fmt.encode_rgb(s.r, s.g, s.b) | alpha;
+			memcpy(target, &encoded, bytes);
+		}
+	}
 }

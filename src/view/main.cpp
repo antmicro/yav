@@ -1,4 +1,4 @@
-// Copyright 2025 Antmicro
+// Copyright 2025, 2026 Antmicro
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@
 
 static void usage() {
 	printf("Usage: yav [--image <path>] [--anchor <x> <y>] [--offset <x> <y>]\n");
-	printf("           [-v] [--dev <d[:cfg]>] [-c|--clear] [-h|--help] [-b|--blend]\n");
-	printf("           [-s|--static] [--time <mspf>] [--loop [times]]\n");
+	printf("           [-v] [--dev <d[:cfg]>] [-c|--clear [color]] [-h|--help]\n");
+	printf("           [-b|--blend] [-s|--static] [--time <mspf>] [--loop [times]]\n");
 }
 
 static void help() {
@@ -41,11 +41,11 @@ static void help() {
 	printf("      --offset <x> <y> : Offset in pixels\n");
 	printf("      --time <mspf>    : Milliseconds per animation frame\n");
 	printf("      --loop [times]   : Specify infinite or exact loop count\n");
+	printf("  -c, --clear [color]  : Clear the framebuffer, where color is [0x|#][aa]rrggbb\n");
 	printf("  -s, --static         : Disable animations if present\n");
 	printf("  -b, --blend          : Enable alpha-blending\n");
-	printf("  -c, --clear          : Clear the framebuffer\n");
-	printf("\nExample:\n");
-	printf("  yav --image example/tuxan.png --anchor 0.5 0.5\n");
+	printf("\nExamples:\n");
+	printf("  yav --image example/tuxan.png --anchor 0.5 0.5 --clear ffffff\n");
 	printf("  yav --image example/tuxan.png --anchor 1 1 --offset -100 -100\n");
 	printf("  yav --image example/splash.png --anchor 0.5 0.5 --blend\n");
 	printf("  yav --image example/earth.png --loop\n");
@@ -124,6 +124,16 @@ static void entry(const std::vector<std::string>& args) {
 		return std::find(args.begin(), args.end(), option);
 	};
 
+	auto get_either_flag = [&](const char* first, const char* second) {
+		auto it = get_flag(first);
+
+		if (it != args.end()) {
+			return it;
+		}
+
+		return get_flag(second);
+	};
+
 	auto next_value = [&](decltype(args.begin())& it) -> std::string {
 		++it;
 		return (it == args.end()) ? "" : *it;
@@ -146,8 +156,15 @@ static void entry(const std::vector<std::string>& args) {
 		screen->dump();
 	}
 
-	if (get_flag("--clear") != args.end() || get_flag("-c") != args.end()) {
-		screen->clear();
+	if (auto it = get_either_flag("-c", "--clear"); it != args.end()) {
+		auto next = it + 1;
+		color c{};
+
+		if ((next != args.end()) && !next->empty() && !next->starts_with("-")) {
+			c = color::parse(next->c_str());
+		}
+
+		screen->clear(c);
 	}
 
 	if (auto it = get_flag("--image"); it != args.end()) {

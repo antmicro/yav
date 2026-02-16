@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "color.hpp"
 #include "format.hpp"
 #include "image.hpp"
 
@@ -35,7 +36,7 @@ public:
 	void blit(const image& img);
 
 	// Clear the screen contents
-	void clear();
+	void clear(color c);
 
 	// Print generic information about this screen to the standard output
 	virtual void dump() = 0;

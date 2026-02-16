@@ -20,12 +20,14 @@ add_library(yavo OBJECT
         src/core/logger.hpp
         src/core/image.cpp
         src/core/image.hpp
-        src/core/screen.hpp
         src/core/format.cpp
         src/core/format.hpp
         src/core/screen.cpp
+        src/core/screen.hpp
         src/core/interrupt.cpp
         src/core/interrupt.hpp
+        src/core/color.cpp
+        src/core/color.hpp
 )
 
 if (PkgConfig_FOUND)
