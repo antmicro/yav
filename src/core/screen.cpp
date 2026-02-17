@@ -41,7 +41,25 @@ static YAV_FORCE_INLINE void blend(color& s, const void* backbuffer_pixel, const
 	s.b = s.b * foreground + b * background;
 }
 
+static YAV_FORCE_INLINE size_t get_offset(const position& offset, int x, int y, size_t line, size_t point) {
+	return ((offset.x + x) + (offset.y + y) * line) * point;
+}
+
 // region screen
+
+constraint screen::get_viewport(constraint scrc) const {
+	viewport sized = view;
+
+	if (sized.w == -1) {
+		sized.w = scrc.width();
+	}
+
+	if (sized.h == -1) {
+		sized.h = scrc.height();
+	}
+
+	return sized.get_constraint(scrc);
+}
 
 void screen::blit_frame(const image& img, int frame) {
 	const int screen_width = width();
@@ -60,28 +78,24 @@ void screen::blit_frame(const image& img, int frame) {
 	const bool blending = img.blend;
 
 	// calculate final image offset
-	// [sx, sy] describe the position in screen space coordinates (in range [0,
-	// 1] the placement of the image's matching point, where (0, 0) is the top
-	// left screen corner. (so for (-1, -1) top-left image corner in top-left
-	// screen corner, and for (1, 1) bottom-right image corner in bottom-right
-	// screen corner). We add the [ox, oy], to allow for-fine tuning the image's
-	// position in pixels.
-	const int fx = img.ox + static_cast<float>(screen_width) * img.sx - static_cast<float>(img_width) * img.sx;
-	const int fy = img.oy + static_cast<float>(screen_height) * img.sy - static_cast<float>(img_height) * img.sy;
+	constraint scrc{0, 0, screen_width, screen_height};
+	constraint view = get_viewport(scrc);
 
-	//  clamp source dimensions so that it fits in the buffer
-	size_t bx = std::max(fx, 0);
-	size_t by = std::max(fy, 0);
+	position placed = img.get_position(view);
+	constraint imgc{placed.x, placed.y, img_width, img_height};
 
-	// ... here we make sure we don't fall outside on the right/bottom
-	size_t w = std::min(fx + img_width, screen_width) - fx;
-	size_t h = std::min(fy + img_height, screen_height) - fy;
+	constraint region = get_constraint_intersection({scrc, imgc, view});
+	position so = scrc.offset(region);
+	position io = imgc.offset(region);
 
 	// we iterate over the clamped range of source image pixels
-	for (size_t y = 0; y < h; y++) {
-		for (size_t x = 0; x < w; x++) {
-			void* target = dst + (bx + x + (by + y) * screen_width) * bytes;
-			color s = color::from_rgba(img.data(frame) + (x + y * img_width) * 4);
+	for (int y = 0; y < region.height(); y++) {
+		for (int x = 0; x < region.width(); x++) {
+			const size_t screen_pixel = get_offset(so, x, y, screen_width, bytes);
+			const size_t image_pixel = get_offset(io, x, y, img_width, 4);
+
+			void* target = dst + screen_pixel;
+			color s = color::from_rgba(img.data(frame) + image_pixel);
 
 			// skip fully transparent pixels
 			if (s.a == 0) {
@@ -140,9 +154,15 @@ void screen::clear(color c) {
 		return;
 	}
 
-	for (size_t y = 0; y < h; y++) {
-		for (size_t x = 0; x < w; x++) {
-			void* target = dst + (x + y * w) * bytes;
+	constraint scrc{0, 0, width(), height()};
+	constraint view = get_viewport(scrc);
+
+	constraint region = get_constraint_intersection({scrc, view});
+	position so = scrc.offset(region);
+
+	for (int y = 0; y < region.height(); y++) {
+		for (int x = 0; x < region.width(); x++) {
+			void* target = dst + get_offset(so, x, y, w, bytes);
 			color s = c;
 
 			if (c.a != 255) {

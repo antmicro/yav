@@ -24,31 +24,59 @@
 
 #include "core/framebuffer.hpp"
 
+static void printo(const std::string_view& text, bool stop_on_colon = true) {
+	bool bold = false;
+	bool faint = false;
+	bool enabled = true;
+
+	for (char c : text) {
+		if (enabled) {
+			if (c == '-' && !bold) {
+				printf("\033[1m");
+				bold = true;
+			} else if ((c == ' ' || c == ',') && bold) {
+				printf("\033[0m");
+				bold = false;
+			}
+		}
+
+		if (c == ':') {
+			enabled = !stop_on_colon;
+		}
+
+		putc(c, stdout);
+	}
+}
+
 static void usage() {
-	printf("Usage: yav [--image <path>] [--anchor <x> <y>] [--offset <x> <y>]\n");
-	printf("           [-v] [--dev <d[:cfg]>] [-c|--clear [color]] [-h|--help]\n");
-	printf("           [-b|--blend] [-s|--static] [--time <mspf>] [--loop [times]]\n");
+	printo("Usage: yav [--image <path>] [--anchor <x> <y>] [--offset <x> <y>]\n", false);
+	printo("           [-v] [--dev <d[:cfg]>] [-c|--clear [color]] [-h|--help]\n", false);
+	printo("           [-b|--blend] [-s|--static] [--time <mspf>] [--loop [times]]\n");
+	printo("           [--view <x> <y> <w> <h>] [--view-anchor <x> <y>]\n");
 }
 
 static void help() {
 	usage();
-	printf("Options:\n");
-	printf("  -h, --help           : Show this help page and exit\n");
-	printf("  -v                   : Verbose mode\n");
-	printf("      --dev <d[:cfg]>  : Device type ('fb', 'drm') and config, use '--dev <d>:?' for more info.\n");
-	printf("      --image <path>   : Image file path\n");
-	printf("      --anchor <x> <y> : Anchor as fractions in range 0 to 1\n");
-	printf("      --offset <x> <y> : Offset in pixels\n");
-	printf("      --time <mspf>    : Milliseconds per animation frame\n");
-	printf("      --loop [times]   : Specify infinite or exact loop count\n");
-	printf("  -c, --clear [color]  : Clear the framebuffer, where color is [0x|#][aa]rrggbb\n");
-	printf("  -s, --static         : Disable animations if present\n");
-	printf("  -b, --blend          : Enable alpha-blending\n");
+	printf("\nOptions:\n");
+	printo("  -h, --help                 : Show this help page and exit\n");
+	printo("  -v                         : Verbose mode\n");
+	printo("      --dev <device[:cfg]>   : Device type ('fb', 'drm') and config, use '--dev <d>:?' for more info.\n");
+	printo("      --image <path>         : Image file path\n");
+	printo("      --anchor <x> <y>       : Anchor as fractions in range 0 to 1\n");
+	printo("      --offset <x> <y>       : Offset in pixels\n");
+	printo("      --time <mspf>          : Milliseconds per animation frame\n");
+	printo("      --loop [times]         : Specify infinite or exact loop count\n");
+	printo("  -c, --clear [color]        : Clear the framebuffer, where color is [0x|#][aa]rrggbb\n");
+	printo("  -s, --static               : Disable animations if present\n");
+	printo("  -b, --blend                : Enable alpha-blending\n");
+	printo("      --view <x> <y> <w> <h> : Configure viewport area\n");
+	printo("      --view-anchor <x> <y>  : Viewport anchor as fractions in range 0 to 1\n");
 	printf("\nExamples:\n");
 	printf("  yav --image example/tuxan.png --anchor 0.5 0.5 --clear ffffff\n");
 	printf("  yav --image example/tuxan.png --anchor 1 1 --offset -100 -100\n");
 	printf("  yav --image example/splash.png --anchor 0.5 0.5 --blend\n");
 	printf("  yav --image example/earth.png --loop\n");
+	printf("  yav --view 0 0 200 10 --clear ff0000\n");
 }
 
 static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
@@ -156,6 +184,18 @@ static void entry(const std::vector<std::string>& args) {
 		screen->dump();
 	}
 
+	if (auto it = get_flag("--view"); it != args.end()) {
+		screen->view.ox = std::stoi(next_value(it));
+		screen->view.oy = std::stoi(next_value(it));
+		screen->view.w = std::stoi(next_value(it));
+		screen->view.h = std::stoi(next_value(it));
+
+		if (auto it = get_flag("--view-anchor"); it != args.end()) {
+			screen->view.ax = std::stof(next_value(it));
+			screen->view.ay = std::stof(next_value(it));
+		}
+	}
+
 	if (auto it = get_either_flag("-c", "--clear"); it != args.end()) {
 		auto next = it + 1;
 		color c{};
@@ -173,8 +213,8 @@ static void entry(const std::vector<std::string>& args) {
 		bool used_animation_flags = false;
 
 		if (auto it = get_flag("--anchor"); it != args.end()) {
-			img.sx = std::stof(next_value(it));
-			img.sy = std::stof(next_value(it));
+			img.ax = std::stof(next_value(it));
+			img.ay = std::stof(next_value(it));
 		}
 
 		if (auto it = get_flag("--offset"); it != args.end()) {

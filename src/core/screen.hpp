@@ -1,4 +1,4 @@
-// Copyright 2025 Antmicro
+// Copyright 2025, 2026 Antmicro
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include "color.hpp"
 #include "format.hpp"
 #include "image.hpp"
+#include "viewport.hpp"
 
 class screen {
 
@@ -28,7 +29,12 @@ protected:
 	// Write image into the screen
 	void blit_frame(const image& img, int frame);
 
+	// Computes the viewport constraint for the given screen
+	constraint get_viewport(constraint scrc) const;
+
 public:
+
+	viewport view{};
 
 	virtual ~screen() = default;
 

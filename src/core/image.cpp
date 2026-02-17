@@ -1,4 +1,4 @@
-// Copyright 2025 Antmicro
+// Copyright 2025, 2026 Antmicro
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,7 +57,10 @@ static uint8_t* read_file_into_buffer(const std::string& path, int* bytes) {
 }
 
 image::image(const std::string& path)
-	: owner(STB), w(0), h(0), frames(1) {
+	: owner(STB), frames(1) {
+
+	this->w = 0;
+	this->h = 0;
 
 	// number of channels in the *file*, the loaded
 	// buffer will always use 4 channels (RGBA)
@@ -81,7 +84,10 @@ image::image(const std::string& path)
 }
 
 image::image(unsigned char* pixels, int w, int h)
-	: pixels(pixels), w(w), h(h), frames(1) {
+	: pixels(pixels), frames(1) {
+
+	this->w = w;
+	this->h = h;
 }
 
 image::~image() {
@@ -90,14 +96,6 @@ image::~image() {
 	}
 
 	pixels = nullptr;
-}
-
-int image::width() const {
-	return w;
-}
-
-int image::height() const {
-	return h;
 }
 
 unsigned char* image::data(int frame) const {

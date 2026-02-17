@@ -28,6 +28,8 @@ add_library(yavo OBJECT
         src/core/interrupt.hpp
         src/core/color.cpp
         src/core/color.hpp
+        src/core/viewport.cpp
+        src/core/viewport.hpp
 )
 
 if (PkgConfig_FOUND)
