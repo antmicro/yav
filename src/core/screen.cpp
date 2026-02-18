@@ -15,6 +15,7 @@
 #include "screen.hpp"
 
 #include <cstring>
+#include <memory>
 #include <unistd.h>
 
 #include "interrupt.hpp"
@@ -25,27 +26,60 @@
 #define YAV_FORCE_INLINE inline
 #endif
 
+static YAV_FORCE_INLINE size_t get_offset(const position& offset, int x, int y, size_t line, size_t point) {
+	return ((offset.x + x) + (offset.y + y) * line) * point;
+}
+
+static YAV_FORCE_INLINE void blend(color& front, const color& back) {
+	const float foreground = front.a / 255.0f;
+	const float background = 1 - foreground;
+
+	front.r = front.r * foreground + back.r * background;
+	front.g = front.g * foreground + back.g * background;
+	front.b = front.b * foreground + back.b * background;
+}
+
 static YAV_FORCE_INLINE void blend(color& s, const void* backbuffer_pixel, const format& fmt, const size_t bytes) {
 
 	const float foreground = s.a / 255.0f;
 	const float background = 1 - foreground;
 
-	uint8_t r, g, b;
 	size_t pixel = 0;
 	memcpy(&pixel, backbuffer_pixel, bytes);
 
-	fmt.decode_rgb(pixel, &r, &g, &b);
+	color back;
+	fmt.decode_rgb(pixel, &back.r, &back.g, &back.b);
 
-	s.r = s.r * foreground + r * background;
-	s.g = s.g * foreground + g * background;
-	s.b = s.b * foreground + b * background;
-}
-
-static YAV_FORCE_INLINE size_t get_offset(const position& offset, int x, int y, size_t line, size_t point) {
-	return ((offset.x + x) + (offset.y + y) * line) * point;
+	blend(s, back);
 }
 
 // region screen
+
+color* screen::fetch_backbuffer(constraint region, position offset) {
+	const int rw = region.width();
+	const int rh = region.height();
+
+	color* backbuffer = new color[rw * rh];
+
+	const format fmt = form();
+	const int screen_width = width();
+
+	const size_t bytes = std::min(fmt.bytes(), 8UL);
+	auto* src_buffer = reinterpret_cast<unsigned char*>(data());
+
+	for (int y = 0; y < rh; y++) {
+		for (int x = 0; x < rw; x++) {
+			color* dst = backbuffer + (x + y * rw);
+			void* src = src_buffer + get_offset(offset, x, y, screen_width, bytes);
+
+			size_t pixel = 0;
+			memcpy(&pixel, src, bytes);
+			fmt.decode_rgb(pixel, &dst->r, &dst->g, &dst->b);
+		}
+	}
+
+	return backbuffer;
+}
 
 constraint screen::get_viewport(constraint scrc) const {
 	viewport sized = view;
@@ -61,53 +95,31 @@ constraint screen::get_viewport(constraint scrc) const {
 	return sized.get_constraint(scrc);
 }
 
-void screen::blit_frame(const image& img, int frame) {
+void screen::blit_frame(const image& img, int frame, constraint region, position so, position io, color* backbuffer) {
+
+	const int rw = region.width();
+	const int rh = region.height();
+
 	const int screen_width = width();
-	const int screen_height = height();
-
-	const int img_width = img.width();
-	const int img_height = img.height();
-
 	const format fmt = form();
 
 	// save a few cycles by encoding alpha only once
 	const size_t alpha = fmt.encode_alpha(0xff);
 	const size_t bytes = std::min(fmt.bytes(), 8UL);
 
-	auto* dst = reinterpret_cast<unsigned char*>(data());
-	const bool blending = img.blend;
+	auto* dst_buffer = reinterpret_cast<unsigned char*>(data());
 
-	// calculate final image offset
-	constraint scrc{0, 0, screen_width, screen_height};
-	constraint view = get_viewport(scrc);
+	for (int y = 0; y < rh; y++) {
+		for (int x = 0; x < rw; x++) {
+			void* dst = dst_buffer + get_offset(so, x, y, screen_width, bytes);
+			color src = img.pixel(frame, io.x + x, io.y + y);
 
-	position placed = img.get_position(view);
-	constraint imgc{placed.x, placed.y, img_width, img_height};
-
-	constraint region = get_constraint_intersection({scrc, imgc, view});
-	position so = scrc.offset(region);
-	position io = imgc.offset(region);
-
-	// we iterate over the clamped range of source image pixels
-	for (int y = 0; y < region.height(); y++) {
-		for (int x = 0; x < region.width(); x++) {
-			const size_t screen_pixel = get_offset(so, x, y, screen_width, bytes);
-			const size_t image_pixel = get_offset(io, x, y, img_width, 4);
-
-			void* target = dst + screen_pixel;
-			color s = color::from_rgba(img.data(frame) + image_pixel);
-
-			// skip fully transparent pixels
-			if (s.a == 0) {
-				continue;
+			if (backbuffer) {
+				blend(src, backbuffer[x + y * rw]);
 			}
 
-			if (blending) {
-				blend(s, target, fmt, bytes);
-			}
-
-			const size_t color = fmt.encode_rgb(s.r, s.g, s.b) | alpha;
-			memcpy(target, &color, bytes);
+			const size_t encoded = fmt.encode_rgb(src.r, src.g, src.b) | alpha;
+			memcpy(dst, &encoded, bytes);
 		}
 	}
 
@@ -117,11 +129,28 @@ void screen::blit_frame(const image& img, int frame) {
 void screen::blit(const image& img) {
 	int count = img.loops;
 
+	// calculate final image offset
+	constraint scrc{0, 0, width(), height()};
+	constraint view = get_viewport(scrc);
+
+	position placed = img.get_position(view);
+	constraint imgc{placed.x, placed.y, img.width(), img.height()};
+
+	constraint region = get_constraint_intersection({scrc, imgc, view});
+	position so = scrc.offset(region);
+	position io = imgc.offset(region);
+
+	std::unique_ptr<color[]> backbuffer;
+
+	if (img.blend) {
+		backbuffer.reset(fetch_backbuffer(region, so));
+	}
+
 	while (count) {
 		auto last = img.frame_count() - 1;
 
 		for (int frame = 0; frame <= last; frame++) {
-			blit_frame(img, frame);
+			blit_frame(img, frame, region, so, io, backbuffer.get());
 
 			if (was_interrupted()) {
 				return;
@@ -163,13 +192,13 @@ void screen::clear(color c) {
 	for (int y = 0; y < region.height(); y++) {
 		for (int x = 0; x < region.width(); x++) {
 			void* target = dst + get_offset(so, x, y, w, bytes);
-			color s = c;
+			color src = c;
 
-			if (c.a != 255) {
-				blend(s, target, fmt, bytes);
+			if (src.a != 255) {
+				blend(src, target, fmt, bytes);
 			}
 
-			const size_t encoded = fmt.encode_rgb(s.r, s.g, s.b) | alpha;
+			const size_t encoded = fmt.encode_rgb(src.r, src.g, src.b) | alpha;
 			memcpy(target, &encoded, bytes);
 		}
 	}

@@ -98,6 +98,10 @@ image::~image() {
 	pixels = nullptr;
 }
 
+color image::pixel(int frame, int x, int y) const {
+	return color::from_rgba(pixels + ((frame * h + y) * w + x) * 4);
+}
+
 unsigned char* image::data(int frame) const {
 	if (frame >= frames) {
 		throw std::runtime_error("Image frame out of range");

@@ -21,13 +21,17 @@
 
 class screen {
 
+private:
+
+	color* fetch_backbuffer(constraint region, position offset);
+
 protected:
 
 	// Pointer to the start of underlying data, in screen-specific format
 	virtual void* data() const = 0;
 
 	// Write image into the screen
-	void blit_frame(const image& img, int frame);
+	void blit_frame(const image& img, int frame, constraint region, position so, position io, color* backbuffer);
 
 	// Computes the viewport constraint for the given screen
 	constraint get_viewport(constraint scrc) const;

@@ -27,3 +27,5 @@ struct color {
 	static color parse(const char* code);
 	static color from_rgba(const uint8_t* pixel);
 };
+
+static_assert(sizeof(color) == 4);

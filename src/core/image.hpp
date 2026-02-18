@@ -15,6 +15,7 @@
 #pragma once
 #include <string>
 
+#include "color.hpp"
 #include "viewport.hpp"
 
 class image : public viewport {
@@ -38,6 +39,7 @@ public:
 	image(unsigned char* pixels, int w, int h);
 	~image();
 
+	color pixel(int frame, int x, int y) const;
 	unsigned char* data(int frame) const;
 	void dump() const;
 	int frame_count() const;
