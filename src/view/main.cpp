@@ -26,7 +26,6 @@
 
 static void printo(const std::string_view& text, bool stop_on_colon = true) {
 	bool bold = false;
-	bool faint = false;
 	bool enabled = true;
 
 	for (char c : text) {
@@ -34,7 +33,7 @@ static void printo(const std::string_view& text, bool stop_on_colon = true) {
 			if (c == '-' && !bold) {
 				printf("\033[1m");
 				bold = true;
-			} else if ((c == ' ' || c == ',') && bold) {
+			} else if ((c != '-' && !std::isalnum(c)) && bold) {
 				printf("\033[0m");
 				bold = false;
 			}
