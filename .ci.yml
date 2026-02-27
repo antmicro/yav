@@ -7,7 +7,7 @@ build-no-drm:
   script:
     - apt update
     - apt install cmake build-essential git -y
-    - cmake -Bbuild .
+    - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=on -Bbuild
     - cmake --build build
     - pushd build
     - ctest
@@ -20,7 +20,23 @@ build:
   script:
     - apt update
     - apt install cmake build-essential git libdrm-dev -y
-    - cmake -Bbuild .
+    - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=on -Bbuild
+    - cmake --build build
+    - pushd build
+    - ctest
+    - ./yav --help
+    - popd
+  artifacts:
+    name: yav
+    paths:
+      - build/yav
+
+build-clang:
+  stage: build
+  script:
+    - apt update
+    - apt install cmake clang git libdrm-dev pkgconf -y
+    - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_COMPILE_WARNING_AS_ERROR=on -Bbuild
     - cmake --build build
     - pushd build
     - ctest
