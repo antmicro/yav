@@ -57,6 +57,18 @@ add_executable(yav
         src/view/main.cpp
 )
 
+if ((CMAKE_CXX_COMPILER_ID MATCHES "GNU") OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+    set(YAV_PRIVATE_FLAGS
+
+        -Wall
+        -Wextra
+        -pedantic
+    )
+endif()
+
+target_compile_options(yavo PRIVATE ${YAV_PRIVATE_FLAGS})
+target_compile_options(yav PRIVATE ${YAV_PRIVATE_FLAGS})
+
 add_executable(yav_unit_test src/view/test.cpp)
 target_include_directories(yav_unit_test PRIVATE src/)
 target_link_libraries(yav_unit_test PRIVATE yavo)
