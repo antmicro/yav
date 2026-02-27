@@ -17,7 +17,7 @@
 // region channel
 
 channel::channel(unsigned int length, unsigned int offset)
-	: offset(offset), length(length), mask((1 << length) - 1) {
+	: length(length), offset(offset), mask((1 << length) - 1) {
 }
 
 bool channel::is_used() const {

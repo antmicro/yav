@@ -16,6 +16,12 @@
 
 #include <algorithm>
 
+// region position
+
+position::position(int x, int y)
+	: x(x), y(y) {
+}
+
 // region constraint
 
 constraint::constraint(int x, int y, int w, int h)

@@ -40,10 +40,6 @@ static YAV_FORCE_INLINE void blend(color& front, const color& back) {
 }
 
 static YAV_FORCE_INLINE void blend(color& s, const void* backbuffer_pixel, const format& fmt, const size_t bytes) {
-
-	const float foreground = s.a / 255.0f;
-	const float background = 1 - foreground;
-
 	size_t pixel = 0;
 	memcpy(&pixel, backbuffer_pixel, bytes);
 
@@ -183,7 +179,7 @@ void screen::clear(color c) {
 		return;
 	}
 
-	constraint scrc{0, 0, width(), height()};
+	constraint scrc{0, 0, w, h};
 	constraint view = get_viewport(scrc);
 
 	constraint region = get_constraint_intersection({scrc, view});

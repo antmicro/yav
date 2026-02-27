@@ -19,6 +19,9 @@
 struct position {
 	int x = 0;
 	int y = 0;
+
+	position() = default;
+	position(int x, int y);
 };
 
 struct constraint {
