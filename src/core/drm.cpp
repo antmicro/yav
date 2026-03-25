@@ -74,32 +74,42 @@ drmModeConnectorPtr drm::pick_connector(int fd, drmModeResPtr resource, size_t i
 	return connectors[index];
 }
 
-drmModeModeInfoPtr drm::pick_mode(drmModeConnectorPtr connector) {
+drmModeModeInfoPtr drm::pick_mode(drmModeConnectorPtr connector, const uint16_t hdisplay_hint, const uint16_t vdisplay_hint, const uint32_t vrefresh_hint) {
 	size_t pixels = 0;
-	drmModeModeInfoPtr selected = nullptr;
+	drmModeModeInfoPtr preferred = nullptr, highest = nullptr;
 
 	for (int i = 0; i < connector->count_modes; i++) {
 		const auto mode = &connector->modes[i];
+		printf("Found %dx%d at %d\n", mode->vdisplay, mode->hdisplay, i);
+
+		if (hdisplay_hint == mode->hdisplay && vdisplay_hint == mode->vdisplay) {
+			if (vrefresh_hint == 0 || vrefresh_hint == mode->vrefresh) {
+				return mode;
+			}
+		}
 
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-			return mode;
+			preferred = mode;
 		}
 
 		const size_t size = mode->vdisplay * mode->hdisplay;
-		printf("Found %dx%d at %d\n", mode->vdisplay, mode->hdisplay, i);
 
 		// pick the mode with the highest resolution
 		if (size > pixels) {
 			pixels = size;
-			selected = mode;
+			highest = mode;
 		}
 	}
 
-	if (selected == nullptr) {
-		throw std::runtime_error{"No valid mode found for connection!"};
+	if (preferred) {
+		return preferred;
 	}
 
-	return selected;
+	if (highest) {
+		return highest;
+	}
+
+	throw std::runtime_error{"No valid mode found for connection!"};
 }
 
 drmModeCrtcPtr drm::get_crtc(int fd, drmModeConnectorPtr connector) {
@@ -118,11 +128,11 @@ drmModeCrtcPtr drm::get_crtc(int fd, drmModeConnectorPtr connector) {
 	return crtc;
 }
 
-bool drm::try_using(const char* path, size_t conn) {
+bool drm::try_using(const char* path, size_t conn, uint16_t hdisplay_hint, uint16_t vdisplay_hint, uint32_t vrefresh_hint) {
 	if (path != nullptr) {
 		int fh = open(path, O_RDWR);
 		if (fh > 0) {
-			init(fh, conn);
+			init(fh, conn, hdisplay_hint, vdisplay_hint, vrefresh_hint);
 			return true;
 		}
 
@@ -132,7 +142,7 @@ bool drm::try_using(const char* path, size_t conn) {
 	return false;
 }
 
-drm::drm(const char* path) {
+drm::drm(const char* path, uint16_t width, uint16_t height, uint32_t refresh) {
 
 	size_t output = 0;
 
@@ -249,14 +259,14 @@ void drm::create_framebuffer(int depth, int bits_per_pixel) {
 	}
 }
 
-void drm::init(int fd, size_t output) {
+void drm::init(int fd, size_t output, uint16_t hdisplay_hint, uint16_t vdisplay_hint, uint32_t vrefresh_hint) {
 
 	try {
 		auto resource = get_resource(fd);
 		this->fd = fd;
 
 		this->conn = pick_connector(fd, resource, output);
-		this->mode = pick_mode(conn);
+		this->mode = pick_mode(conn, hdisplay_hint, vdisplay_hint, vrefresh_hint);
 		this->crtc = get_crtc(fd, conn);
 
 		create_framebuffer(24, 32);
@@ -284,7 +294,7 @@ void drm::dump() const {
 
 // region drm_screen
 
-drm_screen::drm_screen(const std::string& path)
+drm_screen::drm_screen(const std::string& path, uint16_t hdisplay_hint, uint16_t vdisplay_hint, uint32_t vrefresh_hint)
 	: fb(std::make_unique<drm>(path.empty() ? nullptr : path.c_str())) {
 }
 

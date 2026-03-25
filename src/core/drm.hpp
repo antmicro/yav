@@ -34,18 +34,18 @@ class drm {
 
 	static drmModeResPtr get_resource(int fd);
 	static drmModeConnectorPtr pick_connector(int fd, drmModeResPtr resource, size_t index);
-	static drmModeModeInfoPtr pick_mode(drmModeConnectorPtr connector);
+	static drmModeModeInfoPtr pick_mode(drmModeConnectorPtr connector, uint16_t hdisplay_hint, uint16_t vdisplay_hint, uint32_t vrefresh_hint);
 	static drmModeCrtcPtr get_crtc(int fd, drmModeConnectorPtr connector);
 
 	void map();
 	void create_framebuffer(int depth, int bits_per_pixel);
-	void init(int fd, size_t output);
+	void init(int fd, size_t output, uint16_t hdisplay_hint, uint16_t vdisplay_hint, uint32_t vrefresh_hint);
 
-	bool try_using(const char* path, size_t conn);
+	bool try_using(const char* path, size_t conn, uint16_t hdisplay_hint, uint16_t vdisplay_hint, uint32_t vrefresh_hint);
 
 public:
 
-	drm(const char* path);
+	drm(const char* path, uint16_t hdisplay_hint = 0, uint16_t vdisplay_hint = 0, uint32_t vrefresh_hint = 0);
 	~drm();
 
 	// Update the screen to match the buffer
@@ -74,7 +74,7 @@ protected:
 
 public:
 
-	drm_screen(const std::string& path);
+	drm_screen(const std::string& path, uint16_t hdisplay_hint = 0, uint16_t vdisplay_hint = 0, uint32_t vrefresh_hint = 0);
 
 	void dump() override;
 	int width() const override;
