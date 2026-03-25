@@ -1,4 +1,4 @@
-// Copyright 2025 Antmicro
+// Copyright 2025, 2026 Antmicro
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@ class drm {
 	void map();
 	void create_framebuffer(int depth, int bits_per_pixel);
 	void init(int fd, size_t output);
+
+	bool try_using(const char* path, size_t conn);
 
 public:
 

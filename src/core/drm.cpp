@@ -1,4 +1,4 @@
-// Copyright 2025 Antmicro
+// Copyright 2025, 2026 Antmicro
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,8 +25,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#define DRM_DEV_1 "/dev/dri/card0"
-#define DRM_ENV_CONN "DRM_CONNECTOR"
+#include "config.hpp"
 
 // region drm
 
@@ -119,6 +118,20 @@ drmModeCrtcPtr drm::get_crtc(int fd, drmModeConnectorPtr connector) {
 	return crtc;
 }
 
+bool drm::try_using(const char* path, size_t conn) {
+	if (path != nullptr) {
+		int fh = open(path, O_RDWR);
+		if (fh > 0) {
+			init(fh, conn);
+			return true;
+		}
+
+		LOG_WARN("Failed to open '%s'!\n", path);
+	}
+
+	return false;
+}
+
 drm::drm(const char* path) {
 
 	size_t output = 0;
@@ -151,25 +164,17 @@ drm::drm(const char* path) {
 			output = std::stoull(display.c_str());
 		}
 
-		if (!file.empty()) {
-			int fh = open(file.c_str(), O_RDWR);
-			if (fh > 0) {
-				init(fh, output);
-				return;
-			}
-
-			LOG_WARN("Failed to open user-provided path '%s'!\n", path);
+		if (!file.empty() && try_using(file.c_str(), output)) {
+			return;
 		}
 	}
 
-	if (DRM_DEV_1) {
-		int fh = open(DRM_DEV_1, O_RDWR);
-		if (fh > 0) {
-			init(fh, output);
-			return;
-		}
+	if (try_using(std::getenv(DRM_ENV_PATH), output)) {
+		return;
+	}
 
-		LOG_WARN("Failed to open '%s'!\n", DRM_DEV_1);
+	if (try_using(DRM_DEV_1, output)) {
+		return;
 	}
 
 	throw std::runtime_error("out of ideas, unable to open any framebuffer");

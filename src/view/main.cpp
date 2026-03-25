@@ -22,6 +22,7 @@
 #include "core/drm.hpp"
 #endif
 
+#include "core/config.hpp"
 #include "core/framebuffer.hpp"
 
 static void printo(const std::string_view& text, bool stop_on_colon = true) {
@@ -70,6 +71,10 @@ static void help() {
 	printo("  -b, --blend                : Enable alpha-blending\n");
 	printo("      --view <x> <y> <w> <h> : Configure viewport area\n");
 	printo("      --view-anchor <x> <y>  : Viewport anchor as fractions in range 0 to 1\n");
+	printf("\nEnvironment:\n");
+	printf("  " FB_ENV_PATH " - Linux Framebuffer device path\n");
+	printf("  " DRM_ENV_PATH " - Linux DRM device path\n");
+	printf("  " DRM_ENV_CONN " - Valid Linux DRM connector index\n");
 	printf("\nExamples:\n");
 	printf("  yav --image example/tuxan.png --anchor 0.5 0.5 --clear ffffff\n");
 	printf("  yav --image example/tuxan.png --anchor 1 1 --offset -100 -100\n");
@@ -108,7 +113,7 @@ static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
 			printf("Usage: --dev fb[:path]\n\n");
 			printf("Use framebuffer device, this is the default mode of operation,\n");
 			printf("the optional path given after ':' can be used to point YAV to a specific\n");
-			printf("framebuffer device driver to use. By default yav will try both /dev/fb0 and /dev/fb/0.\n\n");
+			printf("framebuffer device driver to use. By default yav will try both " FB_DEV_1 " and " FB_DEV_2 ".\n\n");
 			exit(0);
 		}
 
@@ -122,9 +127,9 @@ static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
 			printf("Usage: --dev dev[:[path][@screen]]\n\n");
 			printf("Use Linux Direct Rendering Manager (DRM) device,\n");
 			printf("the optional path given after ':' can be used to point YAV to a specific\n");
-			printf("DRM device driver to use. By default YAV will try to use /dev/dri/card0.\n");
+			printf("DRM device driver to use. By default YAV will try to use " DRM_DEV_1 ".\n");
 			printf("The screen is an optional integer given after '@' that specifies the DRM connector to use, by default\n");
-			printf("the value is read from environment variable 'DRM_CONNECTOR', if that is missing '0' is used.\n");
+			printf("the value is read from environment variable '" DRM_ENV_CONN "', if that is missing '0' is used.\n");
 			printf("As the path is optional '--dev drm:@1' is a valid descriptor.\n\n");
 			exit(0);
 		}

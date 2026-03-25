@@ -1,4 +1,4 @@
-// Copyright 2025 Antmicro
+// Copyright 2025, 2026 Antmicro
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,42 +25,40 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-// to disable set to nullptr
-#define FB_DEV_1 "/dev/fb0"
-#define FB_DEV_2 "/dev/fb/0"
+#include "config.hpp"
 
 // region framebuffer
 
-framebuffer::framebuffer(const char* path) {
-
+bool framebuffer::try_using(const char* path) {
 	if (path != nullptr) {
 		int fh = open(path, O_RDWR);
 		if (fh > 0) {
 			init(fh);
-			return;
+			return true;
 		}
 
-		LOG_WARN("Failed to open user-provided path '%s'!\n", path);
+		LOG_WARN("Failed to open '%s'!\n", path);
 	}
 
-	if (FB_DEV_1) {
-		int fh = open(FB_DEV_1, O_RDWR);
-		if (fh > 0) {
-			init(fh);
-			return;
-		}
+	return false;
+}
 
-		LOG_WARN("Failed to open '%s'!\n", FB_DEV_1);
+framebuffer::framebuffer(const char* path) {
+
+	if (try_using(path)) {
+		return;
 	}
 
-	if (FB_DEV_2) {
-		int fh = open(FB_DEV_2, O_RDWR);
-		if (fh > 0) {
-			init(fh);
-			return;
-		}
+	if (try_using(std::getenv(FB_ENV_PATH))) {
+		return;
+	}
 
-		LOG_WARN("Failed to open '%s'!\n", FB_DEV_2);
+	if (try_using(FB_DEV_1)) {
+		return;
+	}
+
+	if (try_using(FB_DEV_2)) {
+		return;
 	}
 
 	throw std::runtime_error("out of ideas, unable to open any framebuffer");
