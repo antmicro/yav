@@ -14,7 +14,7 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(stb)
 
-add_library(yavo OBJECT
+add_library(yavo SHARED
         src/core/framebuffer.cpp
         src/core/framebuffer.hpp
         src/core/logger.hpp
@@ -41,11 +41,14 @@ if (PkgConfig_FOUND)
                 src/core/drm.hpp
         )
 
-        target_link_libraries(yavo_drm PUBLIC ${LIBDRM_LIBRARIES})
+        pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
+        target_link_libraries(yavo_drm PUBLIC PkgConfig::LIBDRM)
         target_include_directories(yavo_drm PUBLIC ${LIBDRM_INCLUDE_DIRS})
         target_link_libraries(yavo PUBLIC yavo_drm)
         target_compile_definitions(yavo PUBLIC HAS_LIBDRM)
         message(STATUS "DRM support ENABLED")
+        get_target_property(_drm_incs PkgConfig::LIBDRM INTERFACE_INCLUDE_DIRECTORIES)
+        message(STATUS "LIBDRM includes: ${_drm_incs}")
     else()
         message(STATUS "DRM support DISABLED, libdrm not found!")
     endif()
@@ -75,7 +78,46 @@ target_link_libraries(yav_unit_test PRIVATE yavo)
 add_test(NAME "YAV Unit Test" COMMAND yav_unit_test)
 
 target_link_libraries(yav PRIVATE yavo)
-target_include_directories(yavo PUBLIC src/)
+target_include_directories(yavo
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include/yavo>
+)
 target_include_directories(yavo PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(yav PRIVATE src/)
-install(TARGETS yav)
+
+set(YAVO_EXPORT_TARGETS yavo yav)
+
+if (TARGET yavo_drm)
+    list(APPEND YAVO_EXPORT_TARGETS yavo_drm)
+endif()
+
+install(TARGETS ${YAVO_EXPORT_TARGETS}
+    EXPORT yavoTargets
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+
+install(DIRECTORY src/core
+    DESTINATION include/yavo
+    FILES_MATCHING PATTERN "*.hpp"
+)
+
+install(EXPORT yavoTargets
+    NAMESPACE yavo::
+    DESTINATION lib/cmake/yavo
+)
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    cmake/yavoConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/yavoConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/yavo
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/yavoConfig.cmake"
+    DESTINATION lib/cmake/yavo
+)
