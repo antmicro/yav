@@ -74,7 +74,7 @@ protected:
 
 public:
 
-	drm_screen(const std::string& path, uint16_t hdisplay_hint = 0, uint16_t vdisplay_hint = 0, uint32_t vrefresh_hint = 0);
+	drm_screen(const std::string& path, uint16_t hdisplay_hint = -1, uint16_t vdisplay_hint = -1, uint32_t vrefresh_hint = -1);
 
 	void dump() override;
 	int width() const override;

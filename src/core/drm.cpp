@@ -80,10 +80,10 @@ drmModeModeInfoPtr drm::pick_mode(drmModeConnectorPtr connector, const uint16_t 
 
 	for (int i = 0; i < connector->count_modes; i++) {
 		const auto mode = &connector->modes[i];
-		printf("Found %dx%d at %d\n", mode->vdisplay, mode->hdisplay, i);
+		// printf("Found %dx%d at %d\n", mode->vdisplay, mode->hdisplay, i);
 
 		if (hdisplay_hint == mode->hdisplay && vdisplay_hint == mode->vdisplay) {
-			if (vrefresh_hint == 0 || vrefresh_hint == mode->vrefresh) {
+			if (vrefresh_hint == -1 || vrefresh_hint == mode->vrefresh) {
 				return mode;
 			}
 		}
