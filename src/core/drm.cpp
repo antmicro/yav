@@ -172,16 +172,16 @@ drm::drm(const char* path, uint16_t width, uint16_t height, uint32_t refresh) {
 			output = std::stoull(display.c_str());
 		}
 
-		if (!file.empty() && try_using(file.c_str(), output)) {
+		if (!file.empty() && try_using(file.c_str(), output, width, height, refresh)) {
 			return;
 		}
 	}
 
-	if (try_using(std::getenv(DRM_ENV_PATH), output)) {
+	if (try_using(std::getenv(DRM_ENV_PATH), output, width, height, refresh)) {
 		return;
 	}
 
-	if (try_using(DRM_DEV_1, output)) {
+	if (try_using(DRM_DEV_1, output, width, height, refresh)) {
 		return;
 	}
 
