@@ -293,7 +293,7 @@ void drm::dump() const {
 // region drm_screen
 
 drm_screen::drm_screen(const std::string& path, uint16_t hdisplay_hint, uint16_t vdisplay_hint, uint32_t vrefresh_hint)
-	: fb(std::make_unique<drm>(path.empty() ? nullptr : path.c_str())) {
+	: fb(std::make_unique<drm>(path.empty() ? nullptr : path.c_str(), hdisplay_hint, vdisplay_hint, vrefresh_hint)) {
 }
 
 void drm_screen::dump() {
