@@ -136,7 +136,7 @@ static std::unique_ptr<screen> make_screen(const std::string& descriptor) {
 
 		return std::make_unique<drm_screen>(path);
 #else
-		printf("This VAV build was compiled without DRM support, use --dev fb[:path]!");
+		printf("This yav build was compiled without DRM support, use --dev fb[:path]!\n");
 		exit(1);
 #endif
 	}
