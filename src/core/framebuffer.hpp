@@ -67,6 +67,9 @@ public:
 		// get height in pixels
 		unsigned int height() const;
 
+		// Get line length in bytes
+		unsigned int line_length() const;
+
 		// Get format of individual pixel in the buffer
 		format get_format() const;
 
@@ -115,6 +118,7 @@ public:
 	void dump() override;
 	int width() const override;
 	int height() const override;
+	int line_length() const override;
 	format form() const override;
 	void flush() const override;
 };

@@ -57,6 +57,9 @@ public:
 	// Height, in pixels, of the screen
 	virtual int height() const = 0;
 
+	// Line length, in bytes, of the screen
+	virtual int line_length() const = 0;
+
 	// Get data format fused by this screen
 	virtual format form() const = 0;
 

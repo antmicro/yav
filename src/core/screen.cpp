@@ -26,8 +26,8 @@
 #define YAV_FORCE_INLINE inline
 #endif
 
-static YAV_FORCE_INLINE size_t get_offset(const position& offset, int x, int y, size_t line, size_t point) {
-	return ((offset.x + x) + (offset.y + y) * line) * point;
+static YAV_FORCE_INLINE size_t get_offset(const position& offset, int x, int y, size_t stride, size_t bytes) {
+	return (offset.y + y) * stride + (offset.x + x) * bytes;
 }
 
 static YAV_FORCE_INLINE void blend(color& front, const color& back) {
@@ -58,7 +58,7 @@ color* screen::fetch_backbuffer(constraint region, position offset) {
 	color* backbuffer = new color[rw * rh];
 
 	const format fmt = form();
-	const int screen_width = width();
+	const int stride = line_length();
 
 	const size_t bytes = std::min(fmt.bytes(), 8UL);
 	auto* src_buffer = reinterpret_cast<unsigned char*>(data());
@@ -66,7 +66,7 @@ color* screen::fetch_backbuffer(constraint region, position offset) {
 	for (int y = 0; y < rh; y++) {
 		for (int x = 0; x < rw; x++) {
 			color* dst = backbuffer + (x + y * rw);
-			void* src = src_buffer + get_offset(offset, x, y, screen_width, bytes);
+			void* src = src_buffer + get_offset(offset, x, y, stride, bytes);
 
 			size_t pixel = 0;
 			memcpy(&pixel, src, bytes);
@@ -96,7 +96,7 @@ void screen::blit_frame(const image& img, int frame, constraint region, position
 	const int rw = region.width();
 	const int rh = region.height();
 
-	const int screen_width = width();
+	const int stride = line_length();
 	const format fmt = form();
 
 	// save a few cycles by encoding alpha only once
@@ -107,7 +107,7 @@ void screen::blit_frame(const image& img, int frame, constraint region, position
 
 	for (int y = 0; y < rh; y++) {
 		for (int x = 0; x < rw; x++) {
-			void* dst = dst_buffer + get_offset(so, x, y, screen_width, bytes);
+			void* dst = dst_buffer + get_offset(so, x, y, stride, bytes);
 			color src = img.pixel(frame, io.x + x, io.y + y);
 
 			if (backbuffer) {
@@ -168,6 +168,7 @@ void screen::blit(const image& img) {
 void screen::clear(color c) {
 	const int w = width();
 	const int h = height();
+	const int stride = line_length();
 
 	const format fmt = form();
 	const size_t bytes = std::min(fmt.bytes(), 8UL);
@@ -187,7 +188,7 @@ void screen::clear(color c) {
 
 	for (int y = 0; y < region.height(); y++) {
 		for (int x = 0; x < region.width(); x++) {
-			void* target = dst + get_offset(so, x, y, w, bytes);
+			void* target = dst + get_offset(so, x, y, stride, bytes);
 			color src = c;
 
 			if (src.a != 255) {

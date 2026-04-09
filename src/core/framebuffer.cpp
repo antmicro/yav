@@ -139,6 +139,10 @@ unsigned int framebuffer::info::height() const {
 	return var.yres;
 }
 
+unsigned int framebuffer::info::line_length() const {
+	return fix.line_length;
+}
+
 format framebuffer::info::get_format() const {
 	auto r = var.red;
 	auto g = var.green;
@@ -220,6 +224,10 @@ int framebuffer_screen::width() const {
 
 int framebuffer_screen::height() const {
 	return fb->cached_info().height();
+}
+
+int framebuffer_screen::line_length() const {
+	return fb->cached_info().line_length();
 }
 
 void* framebuffer_screen::data() const {

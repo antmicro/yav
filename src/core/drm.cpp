@@ -282,6 +282,10 @@ int drm::height() const {
 	return dumb.height;
 }
 
+int drm::line_length() const {
+	return dumb.width * dumb.bpp;
+}
+
 void* drm::data() const {
 	return buffer;
 }
@@ -310,6 +314,10 @@ int drm_screen::width() const {
 
 int drm_screen::height() const {
 	return fb->height();
+}
+
+int drm_screen::line_length() const {
+	return fb->line_length();
 }
 
 void* drm_screen::data() const {

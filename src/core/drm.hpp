@@ -57,6 +57,9 @@ public:
 	// get height, in pixels
 	int height() const;
 
+	// Get line length, in bytes
+	int line_length() const;
+
 	// Get pointer to ARGB data buffer
 	void* data() const;
 
@@ -79,6 +82,7 @@ public:
 	void dump() override;
 	int width() const override;
 	int height() const override;
+	int line_length() const override;
 	format form() const override;
 	void flush() const override;
 };
