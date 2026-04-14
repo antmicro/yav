@@ -283,7 +283,7 @@ int drm::height() const {
 }
 
 int drm::line_length() const {
-	return dumb.width * dumb.bpp;
+	return dumb.pitch;
 }
 
 void* drm::data() const {
