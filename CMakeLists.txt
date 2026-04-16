@@ -108,6 +108,7 @@ install(EXPORT yavoTargets
     NAMESPACE yavo::
     DESTINATION lib/cmake/yavo
 )
+add_library(yavo::yavo ALIAS yavo)
 
 include(CMakePackageConfigHelpers)
 
