@@ -47,6 +47,15 @@ build-clang:
     paths:
       - build/yav
 
+build-arch:
+  image: archlinux:base
+  stage: build
+  before_script:
+    - pacman -Syu --noconfirm git gcc make cmake libdrm pkgconf
+  script:
+    - cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=on -DBUILD_SHARED_LIBS=on -Bbuild
+    - cmake --build build
+
 format:
   stage: build
   script:
