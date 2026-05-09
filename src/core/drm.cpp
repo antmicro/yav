@@ -332,3 +332,7 @@ format drm_screen::form() const {
 void drm_screen::flush() const {
 	fb->flush();
 }
+
+int drm_screen::fd() {
+	return fb->fd;
+}

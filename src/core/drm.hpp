@@ -25,11 +25,9 @@
 class drm {
 
 	drm_mode_create_dumb dumb;
-	drmModeCrtcPtr crtc;
 	drmModeModeInfoPtr mode;
 	drmModeConnectorPtr conn;
 	uint32_t id;
-	int fd;
 	void* buffer;
 
 	static drmModeResPtr get_resource(int fd);
@@ -45,6 +43,8 @@ class drm {
 
 public:
 
+	drmModeCrtcPtr crtc;
+	int fd;
 	drm(const char* path, uint16_t hdisplay_hint = 0, uint16_t vdisplay_hint = 0, uint32_t vrefresh_hint = 0);
 	~drm();
 
@@ -69,13 +69,13 @@ public:
 
 class drm_screen : public screen {
 
-	std::unique_ptr<drm> fb;
-
 protected:
 
 	void* data() const override;
 
 public:
+
+	std::unique_ptr<drm> fb;
 
 	drm_screen(const std::string& path, uint16_t hdisplay_hint = -1, uint16_t vdisplay_hint = -1, uint32_t vrefresh_hint = -1);
 
@@ -85,4 +85,6 @@ public:
 	int line_length() const override;
 	format form() const override;
 	void flush() const override;
+
+	int fd();
 };
