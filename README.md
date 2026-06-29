@@ -1,32 +1,41 @@
 # Yet Another Viewer
 
-Copyright (c) 2025 [Antmicro](https://www.antmicro.com)
+Copyright (c) 2025-2026 [Antmicro](https://www.antmicro.com)
 
-Show images using the Linux framebuffer or DRM at specific locations on the screen.
+Show images on the Linux framebuffer or using DRM, with  precise control over their position on the screen.
 
 ## Build
 
-To build YAV with the optional Linux DRM support, first, install `libdrm-dev`:
+To enable DRM support, install the `libdrm` development package first:
 
 ```bash
 # Debian
 apt install libdrm-dev
 ```
 
-YAV uses CMake and can be build using standard CMake commands like so:
+YAV uses CMake and can be built using the standard CMake workflow:
 
 ```bash
-cmake -Bbuild .
+cmake -B build
 cmake --build build
 ```
 
 ## Usage
 
-YAV will not work together with a running Linux desktop environment, to use it run it without one or on a separate TTY.
-To learn more, see `yav --help`.
+YAV renders images directly to the framebuffer or a DRM device, so it cannot be used while a desktop environment is actively controlling the display. Run it from a text console (TTY). If a graphical desktop is running on the current virtual terminal, switch to another TTY before using it.
+
+Example of displaying an image centered on the screen:
 
 ```bash
-./build/yav --image example/tuxan.png --anchor 0.5 0.5
+./build/yav --image photo.jpg --anchor 0.5 0.5
+```
+
+![](img/sample_usage.png)
+
+For a complete list of available options, run:
+
+```bash
+./build/yav --help
 ```
 
 ## License
