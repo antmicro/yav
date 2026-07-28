@@ -236,7 +236,7 @@ static void entry(const std::vector<std::string>& args) {
 			int times = -1;
 			auto next = it + 1;
 
-			if (!next->empty() && std::isdigit(next->at(0))) {
+			if (next != args.end() && !next->empty() && std::isdigit(next->at(0))) {
 				try {
 					times = std::stoi(*(it + 1));
 					++it;
